@@ -17,3 +17,11 @@ bart_mod <- bart(x = x_train,y = y_train,number_trees = 20)
 bart_pred <- predict_bart(bart_mod = bart_mod, newdata = x_test,type = "mean")
 
 crossprod( (bart_pred-y_test))
+
+x_train <- cross_validation_object[[1]]$x_train
+y_train <- cross_validation_object[[1]]$y_train
+x_test <- cross_validation_object[[1]]$x_test
+
+dbarts::bart(x.train = x_train,
+             y.train = y_train,
+             ntree = 20)
