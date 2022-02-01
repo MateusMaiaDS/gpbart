@@ -39,8 +39,8 @@ update_tau <- function(x,
                        a_tau,
                        d_tau, 
                        predictions
-                       ) {
-
+) {
+  
   # Calculating the values of a and d
   n <- nrow(x)
   
@@ -60,12 +60,12 @@ update_tau <- function(x,
 
 
 # Return rate parameter from the tau prior
-rate_tau <- function(x_matrix, # X value
+rate_tau <- function(x, # X value
                      y, # Y value
                      prob = 0.9,
                      shape){
   # Find the tau_ols
-  tau_ols <- naive_tau(x = x_matrix,
+  tau_ols <- naive_tau(x = x,
                        y = y)
   
   # Function to find the zero
@@ -248,7 +248,7 @@ update_mu_bart <- function(tree,
   
   # Mu mean SD
   mu_var <- (S^-1)
-
+  
   # Calculating mu values
   mu <- mapply(mu_mean, mu_var,
                FUN = function(x, y) {
@@ -395,10 +395,10 @@ bart <- function(x, # Covarariate matrix
     tau_mu <-   tau_mu <- 4*(k_bart^2)*number_trees/((max(y_scale)-min(y_scale))^2)
     
     # Getting the optimal tau values
-    d_tau <- rate_tau(x_matrix = x,
-                    y = y_scale,
-                    prob = prob_tau,
-                    shape = a_tau)
+    d_tau <- rate_tau(x = x,
+                      y = y_scale,
+                      prob = prob_tau,
+                      shape = a_tau)
     
   } else {
     
@@ -409,7 +409,7 @@ bart <- function(x, # Covarariate matrix
     
     
     # Getting the optimal tau value
-    d_tau <- rate_tau(x_matrix = x,
+    d_tau <- rate_tau(x = x,
                       y = y_scale,
                       prob = prob_tau,
                       shape = a_tau)
@@ -441,9 +441,9 @@ bart <- function(x, # Covarariate matrix
       y_hat_store[curr,] <- colSums(predictions)
       residuals_store[[curr]] <- current_partial_residuals_matrix
       predictions_store[[curr]] <- predictions
-
-    }
       
+    }
+    
     
     # Verb Store
     verb_store <- data.frame(verb = rep(NA,number_trees),
@@ -533,9 +533,9 @@ bart <- function(x, # Covarariate matrix
         verb_store[j,"accepted"] <- TRUE
         
         
-
+        
       } else {
-
+        
         # Create a data.frame with the verb and if it was accepted or not
         verb_store[j,"verb"] <- verb
         verb_store[j,"accepted"] <- FALSE
@@ -560,7 +560,7 @@ bart <- function(x, # Covarariate matrix
       current_partial_residuals_matrix[j,] <- current_partial_residuals
       
     } # End of iterations over trees
-        
+    
     
     # Calling the function to update tau
     tau <- update_tau(x = x,
@@ -622,13 +622,13 @@ get_predictions_tree <- function(tree,
     
     
     # To continous covariates
-    if (is.numeric(newdata[, current_node_aux$node_var])) {
+    if (is.numeric(x[, current_node_aux$node_var])) {
       
       # Updating observations from the left node
       if (current_node_aux$left == 1) {
-        new_tree[[list_nodes[i]]]$test_index <- new_tree[[paste0("node_", current_node_aux$parent_node)]]$test_index[which(newdata[new_tree[[paste0("node_", current_node_aux$parent_node)]]$test_index, current_node_aux$node_var] < current_node_aux$node_var_split)] # Updating the left node
+        new_tree[[list_nodes[i]]]$test_index <- new_tree[[paste0("node_", current_node_aux$parent_node)]]$test_index[which(x[new_tree[[paste0("node_", current_node_aux$parent_node)]]$test_index, current_node_aux$node_var] < current_node_aux$node_var_split)] # Updating the left node
       } else {
-        new_tree[[list_nodes[i]]]$test_index <- new_tree[[paste0("node_", current_node_aux$parent_node)]]$test_index[which(newdata[new_tree[[paste0("node_", current_node_aux$parent_node)]]$test_index, current_node_aux$node_var] >= current_node_aux$node_var_split)]
+        new_tree[[list_nodes[i]]]$test_index <- new_tree[[paste0("node_", current_node_aux$parent_node)]]$test_index[which(x[new_tree[[paste0("node_", current_node_aux$parent_node)]]$test_index, current_node_aux$node_var] >= current_node_aux$node_var_split)]
       }
       
       
@@ -636,9 +636,9 @@ get_predictions_tree <- function(tree,
     } else {
       # Updating observations from the left node
       if (current_node_aux$left == 1) {
-        new_tree[[list_nodes[i]]]$test_index <- new_tree[[paste0("node_", current_node_aux$parent_node)]]$test_index[which(newdata[new_tree[[paste0("node_", current_node_aux$parent_node)]]$test_index, current_node_aux$node_var] == current_node_aux$node_var_split)] # Updating the left node
+        new_tree[[list_nodes[i]]]$test_index <- new_tree[[paste0("node_", current_node_aux$parent_node)]]$test_index[which(x[new_tree[[paste0("node_", current_node_aux$parent_node)]]$test_index, current_node_aux$node_var] == current_node_aux$node_var_split)] # Updating the left node
       } else {
-        new_tree[[list_nodes[i]]]$test_index <- new_tree[[paste0("node_", current_node_aux$parent_node)]]$test_index[which(newdata[new_tree[[paste0("node_", current_node_aux$parent_node)]]$test_index, current_node_aux$node_var] != current_node_aux$node_var_split)]
+        new_tree[[list_nodes[i]]]$test_index <- new_tree[[paste0("node_", current_node_aux$parent_node)]]$test_index[which(x[new_tree[[paste0("node_", current_node_aux$parent_node)]]$test_index, current_node_aux$node_var] != current_node_aux$node_var_split)]
       }
     } # Ending the else for type of variable
     
@@ -665,6 +665,8 @@ predict_bart <- function(bart_mod, newdata, type = c("all")){
   mcmc_post_pred <- matrix(NA,
                            nrow = length(bart_mod$tree_store),
                            ncol = nrow(newdata))
+  # Setting up the colnames
+  colnames(newdata) <- colnames(bart_mod$x)
   
   # Retrieving all information necessary to predict for new observations
   for(i in 1:length(bart_mod$tree_store)){
@@ -672,18 +674,18 @@ predict_bart <- function(bart_mod, newdata, type = c("all")){
     current_trees <- bart_mod$tree_store[[i]]
     
     # Creating a pred_aux matrix to store the predictions for new obs
-    pred_aux_matrix <- matrix(0,
-                              nrow = bart_mod$number_trees,
-                              ncol = nrow(newdata))
+    pred_aux <- matrix(0,
+                       nrow = bart_mod$number_trees,
+                       ncol = nrow(newdata))
     
     for(j in 1:bart_mod$number_trees){
       
-      pred_aux_matrix[j,] <- get_predictions_tree(tree = current_trees[[j]],x = newdata)
-    
+      pred_aux[j,] <- get_predictions_tree(tree = current_trees[[j]],x = newdata)
+      
     }
     
     # Adding up all trees
-    mcmc_post_pred[i,] <- colSums(pred_aux_matrix)
+    mcmc_post_pred[i,] <- colSums(pred_aux)
   }
   
   # Getting the values
@@ -691,7 +693,7 @@ predict_bart <- function(bart_mod, newdata, type = c("all")){
                 all = unnormalize_bart(z = mcmc_post_pred, a = bart_mod$control$a_min, b = bart_mod$control$b_max),
                 mean = unnormalize_bart(z = colMeans(mcmc_post_pred), a = bart_mod$control$a_min, b = bart_mod$control$b_max),
                 median = unnormalize_bart(z = colMeans(mcmc_post_pred), a = bart_mod$control$a_min, b = bart_mod$control$b_max))
-                
+  
   return(out)
 }
 
