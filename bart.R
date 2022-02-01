@@ -287,8 +287,7 @@ update_predictions_bart <- function(tree, x) {
     x$terminal == 1
   })))]
   
-  
-  
+
   # Getting the \mu_{j} vector
   mu_values <- unlist(
     lapply(terminal_nodes, function(x) {
@@ -316,7 +315,8 @@ bart <- function(x, # Covarariate matrix
                  y, # Target variable
                  number_trees = 2, # Number of trees
                  control = list(node_min_size = 5,
-                                scale_boolean = TRUE),
+                                scale_boolean = TRUE,
+                                rotation_boolean = FALSE),
                  prior_parameter = list(a_tau = 10, # Parameters from the prior
                                         d_tau = 3,
                                         k_bart = 2,
@@ -332,6 +332,8 @@ bart <- function(x, # Covarariate matrix
   # Setting the initial values for each one of them, 
   node_min_size <- control[["node_min_size"]]
   scale_boolean <- control[["scale_boolean"]]
+  rotation_boolean <- control[["rotation_boolean"]]
+  
   a_tau <- prior_parameter[["a_tau"]]
   d_tau <- prior_parameter[["d_tau"]]
   k_bart <- prior_parameter[["k_bart"]]
@@ -466,12 +468,24 @@ bart <- function(x, # Covarariate matrix
         current_partial_residuals <- y_scale - colSums(predictions[-j,,drop = FALSE])
       }
       
-      # Sampling the verb
-      verb <- sample(c("grow", "prune", "change","swap"),
-                     prob = c(0.25,0.25,0.4,0.1), size = 1)
+      # Propose a new tree based on the verbs: grow/prune/change/swap
+      if(rotation_boolean){
+        verb <- sample(c("grow","grow_projection", "prune", "change","change_projection","swap"),
+                       prob = c(0.125,0.125,0.25,0.20,0.20,0.1), size = 1)
+      } else{
+        verb <- sample(c("grow", "prune", "change","swap"),
+                       prob = c(0.25,0.25,0.4,0.1), size = 1)
+      }
       
-      if (i < max(floor(0.1 * burn), 10) | length(current_trees[[j]]) == 1) verb <- "grow"  # Grow the tree for the first few iterations
       
+      
+      # Case of rotation
+      if(rotation_boolean){
+        if (i < max(floor(0.1 * burn), 10) | length(current_trees[[j]]) == 1) verb <- sample(c("grow","grow_projection"),
+                                                                                             size = 1) # Grow the tree for the first few iterations
+      } else {
+        if (i < max(floor(0.1 * burn), 10) | length(current_trees[[j]]) == 1) verb <- "grow"  # Grow the tree for the first few iterations
+      }  
       
       # GETTING A NEW TREE
       new_trees <- current_trees # Creating new trees to updated as candidate
@@ -592,7 +606,9 @@ bart <- function(x, # Covarariate matrix
                                      prob_tau = prob_tau),
               mcmc_parameter = list(n_iter = n_iter, # Parameters from MCMC
                                     burn = burn,
-                                    thin = thin)))
+                                    thin = thin),
+              verb_store = verb_store)
+              )
   
   
 }
@@ -621,35 +637,62 @@ get_predictions_tree <- function(tree,
     current_node_aux <- new_tree[[list_nodes[[i]]]]
     
     
-    # To continous covariates
-    if (is.numeric(x[, current_node_aux$node_var])) {
+    # Veryfing the type of the current node
+    if (is.list(current_node_aux$node_var)){
+      
+      
+      # Rotation function
+      A <- function(theta) {
+        matrix(c(
+          cos(theta), -sin(theta),
+          sin(theta), cos(theta)
+        ),
+        ncol = 2, nrow = 2, byrow = TRUE
+        )
+      }
+      
+      # Rotated Lon and Lat
+      rotated_x <- tcrossprod(A(current_node_aux$theta), x[, current_node_aux$node_var$node_var_pair])
+      rownames(rotated_x) <- current_node_aux$node_var$node_var_pair
       
       # Updating observations from the left node
       if (current_node_aux$left == 1) {
-        new_tree[[list_nodes[i]]]$test_index <- new_tree[[paste0("node_", current_node_aux$parent_node)]]$test_index[which(x[new_tree[[paste0("node_", current_node_aux$parent_node)]]$test_index, current_node_aux$node_var] < current_node_aux$node_var_split)] # Updating the left node
+        new_tree[[list_nodes[i]]]$test_index<- new_tree[[paste0("node_", current_node_aux$parent_node)]]$test_index[which(rotated_x[current_node_aux$node_var$node_var, new_tree[[paste0("node_", current_node_aux$parent_node)]]$test_index] < current_node_aux$node_var_split)] # Updating the left node
       } else {
-        new_tree[[list_nodes[i]]]$test_index <- new_tree[[paste0("node_", current_node_aux$parent_node)]]$test_index[which(x[new_tree[[paste0("node_", current_node_aux$parent_node)]]$test_index, current_node_aux$node_var] >= current_node_aux$node_var_split)]
+        new_tree[[list_nodes[i]]]$test_index <- new_tree[[paste0("node_", current_node_aux$parent_node)]]$test_index[which(rotated_x[current_node_aux$node_var$node_var, new_tree[[paste0("node_", current_node_aux$parent_node)]]$test_index] >= current_node_aux$node_var_split)]
       }
       
-      
-      # To categorical covariates
-    } else {
-      # Updating observations from the left node
-      if (current_node_aux$left == 1) {
-        new_tree[[list_nodes[i]]]$test_index <- new_tree[[paste0("node_", current_node_aux$parent_node)]]$test_index[which(x[new_tree[[paste0("node_", current_node_aux$parent_node)]]$test_index, current_node_aux$node_var] == current_node_aux$node_var_split)] # Updating the left node
+    } else { # Checking the case where there is no rotated variable
+    
+      # To continous covariates
+      if (is.numeric(x[, current_node_aux$node_var])) {
+        
+        # Updating observations from the left node
+        if (current_node_aux$left == 1) {
+          new_tree[[list_nodes[i]]]$test_index <- new_tree[[paste0("node_", current_node_aux$parent_node)]]$test_index[which(x[new_tree[[paste0("node_", current_node_aux$parent_node)]]$test_index, current_node_aux$node_var] < current_node_aux$node_var_split)] # Updating the left node
+        } else {
+          new_tree[[list_nodes[i]]]$test_index <- new_tree[[paste0("node_", current_node_aux$parent_node)]]$test_index[which(x[new_tree[[paste0("node_", current_node_aux$parent_node)]]$test_index, current_node_aux$node_var] >= current_node_aux$node_var_split)]
+        }
+        
+        
+        # To categorical covariates
       } else {
-        new_tree[[list_nodes[i]]]$test_index <- new_tree[[paste0("node_", current_node_aux$parent_node)]]$test_index[which(x[new_tree[[paste0("node_", current_node_aux$parent_node)]]$test_index, current_node_aux$node_var] != current_node_aux$node_var_split)]
-      }
-    } # Ending the else for type of variable
-    
-    # Checking if it is a terminal node or not
-    if (new_tree[[list_nodes[[i]]]]$terminal == 1 & length(new_tree[[list_nodes[[i]]]]$test_index) > 0) {
+        # Updating observations from the left node
+        if (current_node_aux$left == 1) {
+          new_tree[[list_nodes[i]]]$test_index <- new_tree[[paste0("node_", current_node_aux$parent_node)]]$test_index[which(x[new_tree[[paste0("node_", current_node_aux$parent_node)]]$test_index, current_node_aux$node_var] == current_node_aux$node_var_split)] # Updating the left node
+        } else {
+          new_tree[[list_nodes[i]]]$test_index <- new_tree[[paste0("node_", current_node_aux$parent_node)]]$test_index[which(x[new_tree[[paste0("node_", current_node_aux$parent_node)]]$test_index, current_node_aux$node_var] != current_node_aux$node_var_split)]
+        }
+      } # Ending the else for type of variable
       
-      # Assign the mu value for that terminal node
-      pred_new[new_tree[[list_nodes[[i]]]]$test_index] <- new_tree[[list_nodes[[i]]]]$mu
-      
-    } # End of check terminal
-    
+      # Checking if it is a terminal node or not
+      if (new_tree[[list_nodes[[i]]]]$terminal == 1 & length(new_tree[[list_nodes[[i]]]]$test_index) > 0) {
+        
+        # Assign the mu value for that terminal node
+        pred_new[new_tree[[list_nodes[[i]]]]$test_index] <- new_tree[[list_nodes[[i]]]]$mu
+        
+      } # End of check terminal
+    } # End of the rotation check
   }# End Terminal node iterations
   
   return(pred_new)
@@ -665,6 +708,7 @@ predict_bart <- function(bart_mod, newdata, type = c("all")){
   mcmc_post_pred <- matrix(NA,
                            nrow = length(bart_mod$tree_store),
                            ncol = nrow(newdata))
+  
   # Setting up the colnames
   colnames(newdata) <- colnames(bart_mod$x)
   

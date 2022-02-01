@@ -75,8 +75,6 @@ grow_projection_tree <- function(tree, x, node_min_size, theta = NULL) {
       # Selecting a uniform theta
       theta<-runif(n = 1,min = 0 ,max = pi)
       
-      # Selecting a grid in theta values
-      # theta <- sample(x = seq(0, pi, length.out = 25)[-1], size = 1)
     }
     
     # Rotation function
@@ -570,8 +568,6 @@ change_projection_tree_verb <- function(tree, x, node_min_size, theta = NULL) {
       # Selecting a uniform theta
       theta<-runif(n = 1,min = 0 ,max = pi)
       
-      # Selecting a grid in theta values
-      # theta <- sample(x = seq(0, pi, length.out = 25)[-1], size = 1)
     }
     
     # Rotation function
