@@ -3,75 +3,8 @@
 # Loading test data
 library(magrittr)
 library(Rcpp)
-source("gpbart/seed_bart/seed_bart_simple.R")
-source("gpbart/fast_gp_multiple_tau.R")
+source("fast_gp_multiple_tau.R")
 
-error_counter_rmvn <<- 0
-
-# set.seed(42)
-# Doing quantile normalization and linear transformation to uniform distribution
-normalizing_and_scaling_x <- function(data) {
-  
-  # Creating index to keep the initial order
-  data <- cbind(matrix(1:nrow(data),
-                       nrow = nrow(data)), data)
-  
-  # Ordering the data
-  data <- data[order(data[, 1]), , drop = FALSE]
-  
-  # Saving only the covariates
-  x <- data[, -ncol(data), drop = FALSE]
-  
-  # Saving the target variable
-  y <- data[, ncol(data), drop = FALSE]
-  
-  # Getting ordering from the minimum to  the maximum
-  data_rank <- apply(x, 2, rank, ties.method = "min")
-  
-  data_sort <- apply(x, 2, sort)
-  data_mean <- apply(x, 1, mean)
-  
-  index_to_mean <- function(my_index, my_mean) {
-    return(my_mean[my_index])
-  }
-  
-  quantile_normalized_data <- apply(data_rank, 2, index_to_mean, data_mean)
-  
-  # Putting in a uniform interval
-  scaled_and_normalized <- apply(quantile_normalized_data, 2, function(x) (x - min(x)) / (max(x) - min(x)))
-  
-  # Reordering data
-  new_data <- cbind(scaled_and_normalized[order((scaled_and_normalized[, 1])), , drop = FALSE], y)
-  
-  return(new_data[, -1, drop = FALSE])
-}
-
-normalizing_and_scaling_x_test <- function(x) {
-  
-  # Putting the reference values
-  x <- cbind(matrix(1:nrow(x), nrow = nrow(x)), x)
-  x <- x[order(x[, 1]), , drop = FALSE]
-  
-  # Scaling
-  data_rank <- apply(x, 2, rank, ties.method = "min")
-  
-  data_sort <- apply(x, 2, sort)
-  data_mean <- rowMeans(x)
-  
-  index_to_mean <- function(my_index, my_mean) {
-    return(my_mean[my_index])
-  }
-  
-  quantile_normalized_data <- apply(data_rank, 2, index_to_mean, data_mean)
-  
-  # Putting in a uniform interval
-  scaled_and_normalized <- apply(quantile_normalized_data, 2, function(x) (x - min(x)) / (max(x) - min(x)))
-  
-  # Reordering data
-  x_scaled <- scaled_and_normalized[order((scaled_and_normalized[, 1])), , drop = FALSE]
-  
-  return(x_scaled[, -1, drop = FALSE])
-}
 
 
 # Scaling the data
@@ -88,987 +21,14 @@ unit_cube_scale <- function(x) {
 }
 
 
-# ==================================#
-# Objects to test the stump function
-# ==================================#
-
-# Create an stump
-stump <- function(x, tau, mu) {
-  node <- list()
-  node[["node_0"]] <- list(
-    node_number = 0, observations_index = 1:nrow(x),
-    depth_node = 0,
-    node_var = NA,
-    node_var_split = NA,
-    left = 0,
-    right = 0,
-    parent_node = NA, # Retrieving the number of parent node
-    terminal = 1,
-    tau = tau
-  )
-  node[["node_0"]]$mu <- mu
-  return(node)
-}
-
-# ==================================#
-# Objects to test the grow_tree_verb function
-# ==================================#
-# tree<-stump(x,tau)
-# node_min_size<-5
-
-grow_projection_tree <- function(tree, x, node_min_size, theta = NULL) {
-  
-  # Controlling the "bad trees"
-  bad_trees <- TRUE
-  count_bad_trees <- 0
-  
-  # Try to not get bad_trees
-  while (bad_trees) {
-    
-    # Creating a new tree object to be grown
-    new_tree <- tree
-    
-    # Returning the Tree if there's no node to grow
-    if (sum(unlist(lapply(new_tree, function(x) {
-      # This condition will see if the terminal nodes have at least more than 2* the min node size
-      x$terminal == 1 & length(x$observations_index) > 2 * node_min_size
-    }))) == 0) {
-      return(tree)
-    }
-    
-    # Selecting the terminal nodes
-    nodes_to_grow_names <- names(new_tree[unlist(lapply(new_tree, function(x) {
-      (x$terminal == 1) & (length(x$observations_index) > 2 * node_min_size)
-    }))])
-    
-    
-    # Selecting one terminal node randomly 
-    node_to_grow <- sample(nodes_to_grow_names,size = 1)
-    
-    
-    # Selecting the current node to grow
-    current_node <- new_tree[[node_to_grow]]
-    
-    # Selecting the covariate in case of projection
-    node_var_pair <- sample(colnames(x)[apply(x,2,is.numeric)], 2) # selecting the covariate WITH NO ROTATION
-    
-    # Selecting the node_var that it will be sample
-    node_var <- sample(node_var_pair,size = 1)
-    
-    
-    # Creating a node_var list for the projection
-    node_var_list <- list(node_var_pair = node_var_pair, node_var = node_var)
-    
-    # Determining that this node is no longer a terminal one
-    new_tree[[node_to_grow]]$terminal <- 0
-    
-    # Selecting randomly (OR NOT) the angle to be rotated
-    if (is.null(theta)) {
-      # Selecting a uniform theta
-      theta<-runif(n = 1,min = 0 ,max = pi)
-      
-      # Selecting a grid in theta values
-      # theta <- sample(x = seq(0, pi, length.out = 25)[-1], size = 1)
-    }
-    
-    # Rotation function
-    A <- function(theta) {
-      matrix(c(
-        cos(theta), -sin(theta),
-        sin(theta), cos(theta)
-      ),
-      ncol = 2, nrow = 2, byrow = TRUE
-      )
-    }
-    
-    # Rotated Lon and Lat
-    rotated_x <- tcrossprod(A(theta), x[, node_var_pair])
-    rownames(rotated_x) <- node_var_pair
-    
-    # Selecting the rotated var split
-    node_var_split <- sample(sort(rotated_x[node_var, ]), size = 1)
-    
-    
-    # Creating the left observations
-    left_node_split <- current_node$observations_index[which(rotated_x[node_var, current_node$observations_index] < node_var_split)] # Selecting the left node
-    
-    # Creating the right observations
-    right_node_split <- current_node$observations_index[which(rotated_x[node_var, current_node$observations_index] >= node_var_split)] # Selecting the right node
-    
-    # Updating the depth node
-    depth_node <- current_node$depth_node + 1
-    
-    # Adding to the next node
-    i <- max(unlist(lapply(new_tree, function(x) {
-      x$node_number
-    }))) + 1
-    
-    # Informing the next node
-    new_tree[[paste0("node_", i)]] <- list(
-      node_number = i, observations_index = left_node_split,
-      depth_node = depth_node,
-      node_var = node_var_list,
-      node_var_split = node_var_split,
-      theta = theta,
-      left = 1,
-      right = 0,
-      parent_node = current_node$node_number, # Retrieving the number of parent node
-      terminal = 1,
-      mu = current_node$mu,
-      tau = current_node$tau
-    ) # Adding the node to the new_tree
-    
-    i <- i + 1 # Adding to the next node
-    
-    new_tree[[paste0("node_", i)]] <- list(
-      node_number = i, observations_index = right_node_split,
-      depth_node = depth_node,
-      node_var = node_var_list,
-      node_var_split = node_var_split,
-      theta = theta,
-      left = 0,
-      right = 1,
-      parent_node = current_node$node_number, # Retrieving the number of parent node
-      terminal = 1,
-      mu = current_node$mu,
-      tau = current_node$tau
-    ) # Adding the node to the new_tree
-    
-    
-    # Verifying if it is a good or bad tree
-    if (any(unlist(lapply(new_tree, function(x) {
-      (length(x$observations_index) < node_min_size)
-    })))) { # Veryfing if any terminal node is lower than node_min_size
-      count_bad_trees <- count_bad_trees + 1
-    } else {
-      bad_trees <- FALSE # Return the new good tree
-    }
-    
-    # Verfying the limit of counting 2 bad trees
-    if (count_bad_trees == 2) {
-      return(tree) # Return the original tree
-    }
-  }
-  
-  return(new_tree)
-}
-
-
-# ==================================#
-# Objects to test the grow__projection_tree_verb function
-# ==================================#
-
-grow_tree <- function(tree, x, node_min_size, rotation =  TRUE, theta = NULL){
-  
-  
-  # Controlling the "bad trees"
-  bad_trees <- TRUE
-  count_bad_trees <- 0
-  
-  # Try to not get bad_trees
-  while (bad_trees) {
-    
-    # Creating a new tree object to be grown
-    new_tree <- tree
-    
-    # Returning the Tree if there's no node to grow
-    if (sum(unlist(lapply(new_tree, function(x) {
-      # This condition will see if the terminal nodes have at least more than 2* the min node size
-      x$terminal == 1 & length(x$observations_index) > 2 * node_min_size
-    }))) == 0) {
-      return(tree)
-    }
-    
-    # Selecting the terminal nodes
-    nodes_to_grow_names <- names(new_tree[unlist(lapply(new_tree, function(x) {
-      (x$terminal == 1) & (length(x$observations_index) > 2 * node_min_size)
-    }))])
-    
-    
-    # Selecting one terminal node randomly 
-    node_to_grow <- sample(nodes_to_grow_names,size = 1)
-    
-    
-    # Selecting the current node to grow
-    current_node <- new_tree[[node_to_grow]]
-    
-    # Select only the covariates without the rotation
-    node_var <- sample(colnames(x), 1) 
-    
-    
-    # Determining that this node is no longer a terminal one
-    new_tree[[node_to_grow]]$terminal <- 0
-    
-    
-    # Conditioning if the covariate is continuous or categorical
-    if (is.numeric(x[, node_var])) {
-      
-      node_var_split <- sample(x[current_node$observations_index, node_var], size = 1) # Selecting the splitting point on the variable
-      # node_var_split <- sample(c(0.3,0.5,0.7),size = 1)
-      # node_var_split <- sample(c(-0.4,0,0.4),size = 1)
-      
-      left_node_split <- current_node$observations_index[which(x[current_node$observations_index, node_var] < node_var_split)] # Selecting the left node
-      right_node_split <- current_node$observations_index[which(x[current_node$observations_index, node_var] >= node_var_split)] # Selecting the right node
-      
-      # Updating the depth node
-      depth_node <- current_node$depth_node + 1
-      
-      # Adding to the next node
-      i <- max(unlist(lapply(new_tree, function(x) {
-        x$node_number
-      }))) + 1
-      
-      
-      # Informing the next node
-      new_tree[[paste0("node_", i)]] <- list(
-        node_number = i, observations_index = left_node_split,
-        depth_node = depth_node,
-        node_var = node_var,
-        node_var_split = node_var_split,
-        left = 1,
-        right = 0,
-        parent_node = current_node$node_number, # Retrieving the number of parent node
-        terminal = 1,
-        mu = current_node$mu,
-        tau = current_node$tau
-      ) # Adding the node to the new_tree
-      
-      i <- i + 1 # Adding to the next node
-      
-      new_tree[[paste0("node_", i)]] <- list(
-        node_number = i, observations_index = right_node_split,
-        depth_node = depth_node,
-        node_var = node_var,
-        node_var_split = node_var_split,
-        left = 0,
-        right = 1,
-        parent_node = current_node$node_number, # Retrieving the number of parent node
-        terminal = 1,
-        mu = current_node$mu,
-        tau = current_node$tau
-      ) # Adding the node to the new_tree
-      
-    } else { # Condition to categorical variables
-      
-      node_var_split <- sample(
-        levels(x[current_node$observations_index, node_var]), # Selecting from the observations
-        1
-      ) # One sample to split
-      
-      left_node_split <- current_node$observations_index[which(x[current_node$observations_index, node_var] == node_var_split)] # Selecting the left node
-      right_node_split <- current_node$observations_index[which(x[current_node$observations_index, node_var] != node_var_split)] # Selecting the right node
-      
-      # Updating depthnode
-      depth_node <- current_node$depth_node + 1
-      
-      i <- max(unlist(lapply(new_tree, function(x) {
-        x$node_number
-      }))) + 1 # Adding to the next node
-      
-      # Informing the next node
-      new_tree[[paste0("node_", i)]] <- list(
-        node_number = i, observations_index = left_node_split,
-        depth_node = depth_node,
-        node_var = node_var,
-        node_var_split = node_var_split,
-        left = 1,
-        right = 0,
-        parent_node = current_node$node_number,
-        terminal = 1,
-        mu = current_node$mu,
-        tau = current_node$tau
-      ) # Adding the node to the new_tree
-      
-      i <- i + 1 # Adding to the next node
-      
-      new_tree[[paste0("node_", i)]] <- list(
-        node_number = i, observations_index = right_node_split,
-        depth_node = depth_node,
-        node_var = node_var,
-        node_var_split = node_var_split,
-        left = 0,
-        right = 1,
-        parent_node = current_node$node_number,
-        terminal = 1,
-        mu = current_node$mu,
-        tau = current_node$tau
-      ) # Adding the node to the new_tree
-    }
-    
-    # Verifying if it is a good or bad tree
-    if (any(unlist(lapply(new_tree, function(x) {
-      (length(x$observations_index) < node_min_size)
-    })))) { # Veryfing if any terminal node is lower than node_min_size
-      count_bad_trees <- count_bad_trees + 1
-    } else {
-      bad_trees <- FALSE # Return the new good tree
-    }
-    
-    # Verfying the limit of counting 2 bad trees
-    if (count_bad_trees == 2) {
-      return(tree) # Return the original tree
-    }
-  }
-  
-  return(new_tree)
-  
-}
-
-# ==================================#
-# Objects to test the prune_tree_verb function
-# ==================================#
-
-# Prune a tree verb
-prune_tree_verb <- function(tree, x) {
-  
-  # Returning if the tree is just a single node
-  if(length(tree)==1){
-    return(tree)
-  }
-  
-  # Selecting parent nodes
-  parent_nodes <- unique(unlist(lapply(tree, function(x) {
-    x$parent_node
-  })))
-  parent_nodes <- parent_nodes[!is.na(parent_nodes) & parent_nodes >= 0]
-  
-  # Choose the pairs nodes
-  pairs_terminal_nodes <- t(sapply(parent_nodes, function(x) {
-    lapply(tree, function(y) {
-      y$parent_node == x
-    })
-  }))
-  
-  # NOmes of terminals nodes
-  names_pairs_terminal_nodes <- apply(pairs_terminal_nodes, 1, function(x) {
-    names(which(unlist(x)))
-  })
-  
-  # Getting BOOLEAN of the pairs of ONLY terminal nodes
-  terminal_both_nodes <- unlist(lapply(apply(names_pairs_terminal_nodes, 2, function(x) {
-    lapply(tree[x], function(z) {
-      z$terminal == 1
-    })
-  }), function(w) {
-    all(unlist(w))
-  }))
-  
-  # Selecting the name of children terminal nodes.
-  keep_only_terminal_nodes <- names_pairs_terminal_nodes[, terminal_both_nodes]
-  
-  # Children pair (if to case of just one to be pruned)
-  if (is.matrix(keep_only_terminal_nodes)) {
-    child_to_be_pruned <- keep_only_terminal_nodes[, sample(1:ncol(keep_only_terminal_nodes), size = 1)]
-  } else {
-    child_to_be_pruned <- keep_only_terminal_nodes
-  }
-  # Getting the parent node
-  parent_of_the_pruned_node <- tree[[child_to_be_pruned[1]]]$parent_node
-  
-  tree[[child_to_be_pruned[1]]] <- NULL # Pruning child node 1
-  
-  tree[[child_to_be_pruned[2]]] <- NULL # Pruning child node 2
-  
-  # Transforming the parent in a terminal node
-  tree[[paste0("node_", parent_of_the_pruned_node)]]$terminal <- 1
-  
-  
-  return(tree)
-}
-
-# tree <- prune_tree_verb(tree = tree)
-
-# ==================================#
-# Objects to test the change_tree_verb function
-# ==================================#
-# tree<-grow_tree(tree = stump(x = x,tau = 1),x = x,node_min_size = 5,rotation = FALSE) %>%
-# grow_tree(x=x,node_min_size = 5,rotation = FALSE)
-
-
-# Change a tree verb
-change_tree_verb <- function(tree, x, node_min_size, rotation = FALSE, theta = NULL) {
-  
-  # Controlling the "bad trees"
-  bad_trees <- TRUE
-  count_bad_trees <- 0
-  
-  while (bad_trees) {
-    
-    # Craeting the dummy for the new tree
-    new_tree <- tree
-    
-    # Randomly select a internal node
-    nodes_to_change_names <- names(new_tree[unlist(lapply(new_tree, function(x) {
-      x$terminal == 0
-    }))])
-    
-    # Sampling the node to change
-    node_to_change <- sample(nodes_to_change_names,size = 1)
-    
-    # setting the node to be changed as default
-    current_node <- new_tree[[node_to_change]]
-    
-    # Selecting the covariate
-    node_var <- sample(colnames(x), 1)
-    
-    # Analyzing the case where isn't a rotated cov.
-    if (is.numeric(x[, node_var])) {
-      node_var_split <- sample(sort(x[current_node$observations_index, node_var]), size = 1) # Selecting the splitting point on the variable
-      # node_var_split <- sample(c(0.3,0.5,0.7),size = 1)
-      # node_var_split <- sample(c(-0.4,0,0.4),size = 1)
-      
-      
-    } else {
-      node_var_split <- sample(
-        levels(x[current_node$observations_index, node_var]), # Selecting from the observations
-        1
-      )
-    }
-    
-    
-    # Function to get all children nodes from that which was changed.
-    get_all_children <- function(new_tree, current_node) {
-      aux <- names(which(unlist(lapply(new_tree, function(x) {
-        x$parent_node == current_node$node_number
-      })))) # Selecting the children nodes.
-      
-      if (new_tree[[aux[1]]]$terminal == 0) {
-        aux <- c(aux, get_all_children(new_tree, current_node = new_tree[[aux[1]]]))
-      }
-      if (new_tree[[aux[2]]]$terminal == 0) {
-        aux <- c(aux, get_all_children(new_tree, current_node = new_tree[[aux[2]]]))
-      }
-      return(aux)
-    }
-    
-    # Get childrens
-    children_from_change_node <- get_all_children(new_tree, current_node = current_node)
-    
-    
-    new_tree[[children_from_change_node[1]]]$node_var <- node_var # Changing the node var
-    new_tree[[children_from_change_node[2]]]$node_var <- node_var # Changing the node var
-    
-    new_tree[[children_from_change_node[1]]]$node_var_split <- node_var_split # Changing the node split
-    new_tree[[children_from_change_node[2]]]$node_var_split <- node_var_split # Changing the node split
-    
-    
-    
-    # Updating all nodes
-    for (i in 1:length(children_from_change_node)) {
-      
-      # Iterating over each one of the tre noees
-      current_node_aux <- new_tree[[children_from_change_node[i]]]
-      
-      # Veryfing the type of the current node
-      if (is.list(current_node_aux$node_var)){
-        
-        
-        # Rotation function
-        A <- function(theta) {
-          matrix(c(
-            cos(theta), -sin(theta),
-            sin(theta), cos(theta)
-          ),
-          ncol = 2, nrow = 2, byrow = TRUE
-          )
-        }
-        
-        # Rotated Lon and Lat
-        rotated_x <- tcrossprod(A(current_node_aux$theta), x[, current_node_aux$node_var$node_var_pair])
-        rownames(rotated_x) <- current_node_aux$node_var$node_var_pair
-        
-        # Updating observations from the left node
-        if (current_node_aux$left == 1) {
-          new_tree[[children_from_change_node[i]]]$observations_index <- new_tree[[paste0("node_", current_node_aux$parent_node)]]$observations_index[which(rotated_x[current_node_aux$node_var$node_var, new_tree[[paste0("node_", current_node_aux$parent_node)]]$observations_index] < current_node_aux$node_var_split)] # Updating the left node
-        } else {
-          new_tree[[children_from_change_node[i]]]$observations_index <- new_tree[[paste0("node_", current_node_aux$parent_node)]]$observations_index[which(rotated_x[current_node_aux$node_var$node_var, new_tree[[paste0("node_", current_node_aux$parent_node)]]$observations_index] >= current_node_aux$node_var_split)]
-        }
-        
-      } else { # Checking the case where there is no rotated variable
-        
-        # To continous covariates
-        if (is.numeric(x[, current_node_aux$node_var])) {
-          
-          # Updating observations from the left node
-          if (current_node_aux$left == 1) {
-            new_tree[[children_from_change_node[i]]]$observations_index <- new_tree[[paste0("node_", current_node_aux$parent_node)]]$observations_index[which(x[new_tree[[paste0("node_", current_node_aux$parent_node)]]$observations_index, current_node_aux$node_var] < current_node_aux$node_var_split)] # Updating the left node
-          } else {
-            new_tree[[children_from_change_node[i]]]$observations_index <- new_tree[[paste0("node_", current_node_aux$parent_node)]]$observations_index[which(x[new_tree[[paste0("node_", current_node_aux$parent_node)]]$observations_index, current_node_aux$node_var] >= current_node_aux$node_var_split)] # Updating the right node
-          }
-          
-          
-          # To categorical covariates
-        } else {
-          # Updating observations from the left node
-          if (current_node_aux$left == 1) {
-            new_tree[[children_from_change_node[i]]]$observations_index <- new_tree[[paste0("node_", current_node_aux$parent_node)]]$observations_index[which(x[new_tree[[paste0("node_", current_node_aux$parent_node)]]$observations_index, current_node_aux$node_var] == current_node_aux$node_var_split)] # Updating the left node
-          } else {
-            new_tree[[children_from_change_node[i]]]$observations_index <- new_tree[[paste0("node_", current_node_aux$parent_node)]]$observations_index[which(x[new_tree[[paste0("node_", current_node_aux$parent_node)]]$observations_index, current_node_aux$node_var] != current_node_aux$node_var_split)]
-          }
-        }
-      }
-    }
-    
-    
-    # Verifying if it is a good or bad tree
-    if (any(unlist(lapply(new_tree, function(x) {
-      (length(x$observations_index) < node_min_size)
-    })))) { # Veryfing if any terminal node is lower than node_min_size
-      count_bad_trees <- count_bad_trees + 1
-    } else {
-      bad_trees <- FALSE # Return the new good tree
-    }
-    
-    # Verfying the limit of counting 2 bad trees
-    if (count_bad_trees == 2) {
-      return(tree) # Return the original tree
-    }
-    
-  } # Stopping the while
-  
-  return(new_tree)
-}
-
-# ==================================#
-# Objects to test the change_tree_verb function
-# ==================================#
-# tree<-grow_tree(tree = stump(x = x,tau = 1),x = x,node_min_size = 5,rotation = FALSE) %>%
-# grow_tree(x=x,node_min_size = 5,rotation = FALSE)
-
-
-# Change a tree verb
-change_projection_tree_verb <- function(tree, x, node_min_size, theta = NULL) {
-  
-  # Controlling the "bad trees"
-  bad_trees <- TRUE
-  count_bad_trees <- 0
-  
-  while (bad_trees) {
-    
-    # Craeting the dummy for the new tree
-    new_tree <- tree
-    
-    # Randomly select a internal node
-    nodes_to_change_names <- names(new_tree[unlist(lapply(new_tree, function(x) {
-      x$terminal == 0
-    }))])
-    
-    # Sampling the node to change
-    node_to_change <- sample(nodes_to_change_names,size = 1)
-    
-    # setting the node to be changed as default
-    current_node <- new_tree[[node_to_change]]
-    
-    # Selecting the covariate
-    node_var_pair <- sample(colnames(x)[apply(x,2,is.numeric)], 2)
-    
-    node_var <- sample(node_var_pair,size = 1)
-    
-    
-    # Selecting randomly (OR NOT) the angle to be rotated
-    if (is.null(theta)) {
-      # Selecting a uniform theta
-      theta<-runif(n = 1,min = 0 ,max = pi)
-      
-      # Selecting a grid in theta values
-      # theta <- sample(x = seq(0, pi, length.out = 25)[-1], size = 1)
-    }
-    
-    # Rotation function
-    A <- function(theta) {
-      matrix(c(
-        cos(theta), -sin(theta),
-        sin(theta), cos(theta)
-      ),
-      ncol = 2, nrow = 2, byrow = TRUE
-      )
-    }
-    
-    # Rotated Lon and Lat
-    rotated_x <- tcrossprod(A(theta), x[, node_var_pair])
-    rownames(rotated_x) <- node_var_pair
-    
-    # Selecting the rotated var split
-    node_var_split <- sample(sort(rotated_x[node_var, ]), size = 1)
-    
-    # Function to get all children nodes from that which was changed.
-    get_all_children <- function(new_tree, current_node) {
-      aux <- names(which(unlist(lapply(new_tree, function(x) {
-        x$parent_node == current_node$node_number
-      })))) # Selecting the children nodes.
-      
-      if (new_tree[[aux[1]]]$terminal == 0) {
-        aux <- c(aux, get_all_children(new_tree, current_node = new_tree[[aux[1]]]))
-      }
-      if (new_tree[[aux[2]]]$terminal == 0) {
-        aux <- c(aux, get_all_children(new_tree, current_node = new_tree[[aux[2]]]))
-      }
-      return(aux)
-    }
-    
-    # Get childrens
-    children_from_change_node <- get_all_children(new_tree, current_node = current_node)
-    
-    # Create a node_var list
-    node_var_list <- list(node_var_pair = node_var_pair, node_var = node_var)
-    
-    new_tree[[children_from_change_node[1]]]$node_var <- node_var_list # Changing the node var
-    new_tree[[children_from_change_node[2]]]$node_var <- node_var_list # Changing the node var
-    
-    new_tree[[children_from_change_node[1]]]$node_var_split <- node_var_split # Changing the node split
-    new_tree[[children_from_change_node[2]]]$node_var_split <- node_var_split # Changing the node split
-    
-    # For a rotated tree, adding the theta parameter
-    new_tree[[children_from_change_node[1]]]$theta <- theta
-    new_tree[[children_from_change_node[2]]]$theta <- theta
-    
-    
-    # Updating all nodes
-    for (i in 1:length(children_from_change_node)) {
-      
-      # Iterating over each one of the tre noees
-      current_node_aux <- new_tree[[children_from_change_node[i]]]
-      
-      # Veryfing the type of the current node
-      if (is.list(current_node_aux$node_var)){
-        
-        
-        # Rotation function
-        A <- function(theta) {
-          matrix(c(
-            cos(theta), -sin(theta),
-            sin(theta), cos(theta)
-          ),
-          ncol = 2, nrow = 2, byrow = TRUE
-          )
-        }
-        
-        # Rotated Lon and Lat
-        rotated_x <- tcrossprod(A(current_node_aux$theta), x[, current_node_aux$node_var$node_var_pair])
-        rownames(rotated_x) <- current_node_aux$node_var$node_var_pair
-        
-        # Updating observations from the left node
-        if (current_node_aux$left == 1) {
-          new_tree[[children_from_change_node[i]]]$observations_index <- new_tree[[paste0("node_", current_node_aux$parent_node)]]$observations_index[which(rotated_x[current_node_aux$node_var$node_var, new_tree[[paste0("node_", current_node_aux$parent_node)]]$observations_index] < current_node_aux$node_var_split)] # Updating the left node
-        } else {
-          new_tree[[children_from_change_node[i]]]$observations_index <- new_tree[[paste0("node_", current_node_aux$parent_node)]]$observations_index[which(rotated_x[current_node_aux$node_var$node_var, new_tree[[paste0("node_", current_node_aux$parent_node)]]$observations_index] >= current_node_aux$node_var_split)]
-        }
-        
-      } else { # Checking the case where there is no rotated variable
-        
-        # To continous covariates
-        if (is.numeric(x[, current_node_aux$node_var])) {
-          
-          # Updating observations from the left node
-          if (current_node_aux$left == 1) {
-            new_tree[[children_from_change_node[i]]]$observations_index <- new_tree[[paste0("node_", current_node_aux$parent_node)]]$observations_index[which(x[new_tree[[paste0("node_", current_node_aux$parent_node)]]$observations_index, current_node_aux$node_var] < current_node_aux$node_var_split)] # Updating the left node
-          } else {
-            new_tree[[children_from_change_node[i]]]$observations_index <- new_tree[[paste0("node_", current_node_aux$parent_node)]]$observations_index[which(x[new_tree[[paste0("node_", current_node_aux$parent_node)]]$observations_index, current_node_aux$node_var] >= current_node_aux$node_var_split)] # Updating the right node
-          }
-          
-          
-          # To categorical covariates
-        } else {
-          # Updating observations from the left node
-          if (current_node_aux$left == 1) {
-            new_tree[[children_from_change_node[i]]]$observations_index <- new_tree[[paste0("node_", current_node_aux$parent_node)]]$observations_index[which(x[new_tree[[paste0("node_", current_node_aux$parent_node)]]$observations_index, current_node_aux$node_var] == current_node_aux$node_var_split)] # Updating the left node
-          } else {
-            new_tree[[children_from_change_node[i]]]$observations_index <- new_tree[[paste0("node_", current_node_aux$parent_node)]]$observations_index[which(x[new_tree[[paste0("node_", current_node_aux$parent_node)]]$observations_index, current_node_aux$node_var] != current_node_aux$node_var_split)]
-          }
-        }
-        
-        
-      }
-    }
-    
-    
-    # Verifying if it is a good or bad tree
-    if (any(unlist(lapply(new_tree, function(x) {
-      (length(x$observations_index) < node_min_size)
-    })))) { # Veryfing if any terminal node is lower than node_min_size
-      count_bad_trees <- count_bad_trees + 1
-    } else {
-      bad_trees <- FALSE # Return the new good tree
-    }
-    
-    
-    # Verfying the limit of counting 2 bad trees
-    if (count_bad_trees == 2) {
-      return(tree) # Return the original tree
-    }
-    
-  } # Counting the tree while
-  
-  
-  return(new_tree)
-}
-
-
-# ==================================#
-# Objects to test the swap_tree_verb function
-# ==================================#
-# tree<-grow_tree(tree = stump(x = x,tau = 1),x = x,node_min_size = 5,rotation = FALSE) %>%
-#       grow_tree(x=x,node_min_size = 5,rotation = FALSE) %>%
-#       grow_tree(x=x,node_min_size = 5, rotation = FALSE) %>%
-#       grow_tree(x=x,node_min_size = 5, rotation = FALSE)
-
-
-# Testing the tree changes updates
-# for(i in 1:10000){
-# tree <- change_tree_verb(tree = tree,x = x,node_min_size = 15,rotation = FALSE)
-# }
-
-
-# Swap a tree verb
-swap_tree_verb <- function(tree, x, node_min_size) {
-  
-  # Auxiliary variables to trim and make sure that I getting the true values
-  bad_trees <- TRUE
-  count_bad_trees <- 0
-  
-  # Condition to not choose terminal nodes with less than node_min_size
-  while (bad_trees) {
-    
-    # Updating the new tree
-    new_tree <- tree
-    
-    # If less than 3 internal nodes, return the tree
-    count_internal <- sum(unlist(lapply(new_tree, function(x) {
-      x$terminal == 0
-    })))
-    
-    if (count_internal <= 3) {
-      return(tree)
-    }
-    
-    # Selecting internal nodes names
-    names_internal_nodes <- names(which(sapply(tree, function(x) {
-      x$terminal == 0
-    })))
-    
-    # )) # Randomly select a internal node
-    node_to_swap_child_internal_CANDIDATES <- intersect(names(new_tree)[! (names(new_tree) %in% c("node_0","node_1","node_2")) ],
-                                                        names_internal_nodes)
-    
-    # If there is no internal child node
-    if(length(node_to_swap_child_internal_CANDIDATES)==0){
-      return(tree)
-    }
-    # Certifying that's a parent and child internal
-    
-    node_to_swap_child_internal <- sample(node_to_swap_child_internal_CANDIDATES,size = 1)
-    
-    # Certifying that's a parent and child internal
-    # Saving as current node
-    current_node <- new_tree[[node_to_swap_child_internal]]
-    
-    # Selecting the node to swap
-    node_to_swap_parent <- names(which(unlist(lapply(new_tree, function(x) {
-      x$node_number == current_node$parent_node
-    })))) # Selecting the children from swap parent
-    
-    # Getting all children function
-    get_all_children <- function(new_tree, current_node) {
-      
-      # Selecting the children nodes.
-      aux <- names(which(unlist(lapply(new_tree, function(x) {
-        x$parent_node == current_node$node_number
-      }))))
-      
-      if (new_tree[[aux[1]]]$terminal == 0) {
-        aux <- c(aux, get_all_children(new_tree, current_node = new_tree[[aux[1]]]))
-      }
-      if (new_tree[[aux[2]]]$terminal == 0) {
-        aux <- c(aux, get_all_children(new_tree, current_node = new_tree[[aux[2]]]))
-      }
-      return(aux)
-    }
-    
-    # Getting the both next children from the swapped parent node.
-    parent_swap_imediate_children <- get_all_children(new_tree, current_node = new_tree[[node_to_swap_parent]])[1:2]
-    
-    # Getting the both next children from the swapped children node.
-    child_swap_imediate_children <- get_all_children(new_tree, current_node = new_tree[[node_to_swap_child_internal]])[1:2]
-    
-    # Selecting the node_var and node_var_split rule for parent and child internal respectively
-    #
-    # For the case where a rot. lat/lon is swap
-    if ( is.list(new_tree[[parent_swap_imediate_children[1]]]$node_var) ) {
-      node_and_split_1 <- list(
-        new_tree[[parent_swap_imediate_children[1]]]$node_var, new_tree[[parent_swap_imediate_children[1]]]$node_var_split,
-        new_tree[[parent_swap_imediate_children[1]]]$theta
-      )
-    } else {
-      node_and_split_1 <- c(new_tree[[parent_swap_imediate_children[1]]]$node_var, new_tree[[parent_swap_imediate_children[1]]]$node_var_split)
-    }
-    # For the case where a rot. lat/lon is swaped
-    if (is.list(new_tree[[child_swap_imediate_children[1]]]$node_var) ) {
-      node_and_split_2 <- list(
-        new_tree[[child_swap_imediate_children[1]]]$node_var, new_tree[[child_swap_imediate_children[1]]]$node_var_split,
-        new_tree[[child_swap_imediate_children[1]]]$theta
-      )
-    } else {
-      node_and_split_2 <- c(new_tree[[child_swap_imediate_children[1]]]$node_var, new_tree[[child_swap_imediate_children[1]]]$node_var_split)
-    }
-    
-    
-    
-    # Chaging the first swapped internal child from parent (node one)
-    if (is.list(node_and_split_2[[1]])) { # For the case where a rot. lat/lon is swap
-      new_tree[[parent_swap_imediate_children[1]]]$node_var <- node_and_split_2[[1]]
-      new_tree[[parent_swap_imediate_children[1]]]$node_var_split <- as.numeric(node_and_split_2[[2]])
-      new_tree[[parent_swap_imediate_children[1]]]$theta <- as.numeric(node_and_split_2[[3]])
-      
-    } else {
-      new_tree[[parent_swap_imediate_children[1]]]$node_var <- node_and_split_2[1]
-      new_tree[[parent_swap_imediate_children[1]]]$node_var_split <- as.numeric(node_and_split_2[2])
-    }
-    
-    
-    # Chaging the first swapped internal child from parent (node two)
-    if (is.list(node_and_split_2[[1]]) ) { # For the case where a rot. lat/lon is swap
-      new_tree[[parent_swap_imediate_children[2]]]$node_var <- node_and_split_2[[1]]
-      new_tree[[parent_swap_imediate_children[2]]]$node_var_split <- as.numeric(node_and_split_2[[2]])
-      new_tree[[parent_swap_imediate_children[2]]]$theta <- as.numeric(node_and_split_2[[3]])
-      
-    } else {
-      new_tree[[parent_swap_imediate_children[2]]]$node_var <- node_and_split_2[1]
-      new_tree[[parent_swap_imediate_children[2]]]$node_var_split <- as.numeric(node_and_split_2[2])
-    }
-    
-    # Chaging the first swapped internal parent from child (node one)
-    if (is.list(node_and_split_1[[1]]) ) { # For the case where a rot. lat/lon is swap
-      new_tree[[child_swap_imediate_children[1]]]$node_var <- node_and_split_1[[1]]
-      new_tree[[child_swap_imediate_children[1]]]$node_var_split <- as.numeric(node_and_split_1[[2]])
-      new_tree[[child_swap_imediate_children[1]]]$theta <- as.numeric(node_and_split_1[[3]])
-      
-    } else {
-      new_tree[[child_swap_imediate_children[1]]]$node_var <- node_and_split_1[1]
-      new_tree[[child_swap_imediate_children[1]]]$node_var_split <- as.numeric(node_and_split_1[2])
-    }
-    
-    
-    # Chaging the first swapped internal parent from child (node two)
-    if (is.list(node_and_split_1[[1]]) ) { # For the case where a rot. lat/lon is swap
-      new_tree[[child_swap_imediate_children[2]]]$node_var <- node_and_split_1[[1]]
-      new_tree[[child_swap_imediate_children[2]]]$node_var_split <- as.numeric(node_and_split_1[[2]])
-      new_tree[[child_swap_imediate_children[2]]]$theta <- as.numeric(node_and_split_1[[3]])
-      
-    } else {
-      new_tree[[child_swap_imediate_children[2]]]$node_var <- node_and_split_1[1]
-      new_tree[[child_swap_imediate_children[2]]]$node_var_split <- as.numeric(node_and_split_1[2])
-    }
-    
-    # Updating the new_tree observations (Getting all children from that swapped)
-    list_nodes <- get_all_children(new_tree = new_tree, current_node = new_tree[[node_to_swap_parent]])
-    
-    # Updating all nodes
-    for (i in 1:length(list_nodes)) {
-      current_node_aux <- new_tree[[list_nodes[i]]]
-      
-      # Veryfing the type of the current node
-      if (is.list(current_node_aux$node_var)){
-        
-        
-        # Rotation function
-        A <- function(theta) {
-          matrix(c(
-            cos(theta), -sin(theta),
-            sin(theta), cos(theta)
-          ),
-          ncol = 2, nrow = 2, byrow = TRUE
-          )
-        }
-        
-        # Rotated Lon and Lat
-        rotated_x <- tcrossprod(A(current_node_aux$theta), x[, current_node_aux$node_var$node_var_pair])
-        rownames(rotated_x) <- current_node_aux$node_var$node_var_pair
-        
-        # Updating observations from the left node
-        if (current_node_aux$left == 1) {
-          new_tree[[list_nodes[i]]]$observations_index <- new_tree[[paste0("node_", current_node_aux$parent_node)]]$observations_index[which(rotated_x[current_node_aux$node_var$node_var, new_tree[[paste0("node_", current_node_aux$parent_node)]]$observations_index] < current_node_aux$node_var_split)] # Updating the left node
-        } else {
-          new_tree[[list_nodes[i]]]$observations_index <- new_tree[[paste0("node_", current_node_aux$parent_node)]]$observations_index[which(rotated_x[current_node_aux$node_var$node_var, new_tree[[paste0("node_", current_node_aux$parent_node)]]$observations_index] >= current_node_aux$node_var_split)]
-        }
-        
-      } else { # Checking the case where there is no rotated variable
-        
-        # To continous covariates
-        if (is.numeric(x[, current_node_aux$node_var])) {
-          
-          # Updating observations from the left node
-          if (current_node_aux$left == 1) {
-            new_tree[[list_nodes[i]]]$observations_index <- new_tree[[paste0("node_", current_node_aux$parent_node)]]$observations_index[which(x[new_tree[[paste0("node_", current_node_aux$parent_node)]]$observations_index, current_node_aux$node_var] < current_node_aux$node_var_split)] # Updating the left node
-          } else {
-            new_tree[[list_nodes[i]]]$observations_index <- new_tree[[paste0("node_", current_node_aux$parent_node)]]$observations_index[which(x[new_tree[[paste0("node_", current_node_aux$parent_node)]]$observations_index, current_node_aux$node_var] >= current_node_aux$node_var_split)] # Updating the right node
-          }
-          
-          
-          # To categorical covariates
-        } else {
-          # Updating observations from the left node
-          if (current_node_aux$left == 1) {
-            new_tree[[list_nodes[i]]]$observations_index <- new_tree[[paste0("node_", current_node_aux$parent_node)]]$observations_index[which(x[new_tree[[paste0("node_", current_node_aux$parent_node)]]$observations_index, current_node_aux$node_var] == current_node_aux$node_var_split)] # Updating the left node
-          } else {
-            new_tree[[list_nodes[i]]]$observations_index <- new_tree[[paste0("node_", current_node_aux$parent_node)]]$observations_index[which(x[new_tree[[paste0("node_", current_node_aux$parent_node)]]$observations_index, current_node_aux$node_var] != current_node_aux$node_var_split)]
-          }
-        }
-      }
-    }
-    
-    # Verifying if it is a good or bad tree
-    if (any(unlist(lapply(new_tree, function(x) {
-      (length(x$observations_index) < node_min_size)
-    })))) { # Veryfing if any terminal node is lower than node_min_size
-      count_bad_trees <- count_bad_trees + 1
-    } else {
-      bad_trees <- FALSE # Return the new good tree
-    }
-    
-    # Verfying the limit of counting 2 bad trees
-    if (count_bad_trees == 2) {
-      return(tree) # Return the original tree
-    }
-  }
-  
-  return(new_tree)
-}
-
-
-
-# Sort an action to update the tree
-update_tree_verb <- function(tree, x, node_min_size, verb, rotation = TRUE, theta = NULL) {
-  
-  # Update the tree by a verb
-  updated_tree <- switch(verb,
-                         grow = grow_tree(tree,
-                                          x = x, node_min_size = node_min_size, rotation = rotation,
-                                          theta = theta
-                         ), # Grow verb
-                         grow_projection = grow_projection_tree(tree = tree,
-                                                                x = x,
-                                                                node_min_size = node_min_size,theta = theta),
-                         prune = prune_tree_verb(tree, x = x), # Prune verb
-                         change = change_tree_verb(tree, x = x, node_min_size = node_min_size, rotation = rotation, theta = theta), # Change verb
-                         change_projection = change_projection_tree_verb(tree = tree,
-                                                                         node_min_size = node_min_size,theta = theta,x = x),
-                         swap = swap_tree_verb(tree, x = x, node_min_size = node_min_size) # Swap verb
-                         
-  )
-  return(updated_tree)
-}
 
 # ==================================#
 # Objects to test the tree_complete_conditional function
 # ==================================#
 
-# Go to RBART FUNCTION
-
-# Calculating the full conditional probability with a new \nu value
-
-tree_complete_conditional <- function(tree, x, residuals, nu = 1, phi = 1, 
+tree_complete_conditional_gpbart <- function(tree, x, residuals, nu = 1, phi = 1, 
                                       tau_mu,
-                                      c_value, number_trees= number_trees,
+                                      number_trees= number_trees,
                                       tau_multiplier) {
   
   
@@ -1093,7 +53,7 @@ tree_complete_conditional <- function(tree, x, residuals, nu = 1, phi = 1,
   
   # Calculating value S
   S <- unlist(mapply( terminal_nodes, FUN=function(z) {
-    (sum(z$Omega_plus_I_inv) + c(tau_mu / c_value))#/(tau_mu)
+    (sum(z$Omega_plus_I_inv) + c(tau_mu ))
   },SIMPLIFY = TRUE))
   
   
@@ -1148,7 +108,6 @@ update_mu <- function(tree,
                       phi,
                       tau,
                       residuals,
-                      c_value,
                       likelihood_object,
                       seed = NULL) {
   
@@ -1432,98 +391,11 @@ get_prediction <- function(trees, x, single_tree = FALSE) {
 
 
 
-# Function to update nu values
-update_nu <- function(x, y, current_tree_iter,residuals,
-                      seed = NULL,
-                      a_nu, d_nu, tau, tau_mu,
-                      c_value, phi, nu,number_trees,
-                      likelihood_object,p,gp_variables) {
-  
-  
-  # Calculating the values of a and d
-  a = a_nu 
-  d = d_nu
-  
-  
-  # Proposing a new \nu value
-  # nu_proposal <- sample(seq(from = 1e-4,to = 1,length.out = 1000),size = 1) # Sampling new value
-  # nu_proposal <- sample(seq(from = 0.1,to = 5,length.out = 1000),size = 1) # Sampling new value
-  # nu_proposal <- sample(exp(seq(from = -1,to = 1,length.out = 1000)),size = 1) # Sampling new value
-  # nu_proposal <- sample(seq(from = exp(-4),to = exp(4),length.out = 1000),size = 1) # Sampling new value
-  # New nu_proposal based over the range of \nu
-  nu_proposal <-runif(n = 1,min = 0.1*(0.25*sd(y)^(-2)), max = 20*(0.25*sd(y)^(-2)))
-  
-  # print(nu_proposal)
-  
-  # nu_proposal <- 1000
-  
-  # Getting the old likelihood object
-  # likelihood_object<- tree_complete_conditional_from_mu(tree = current_tree_iter,
-  #                                                             x = x, tau = tau,
-  #                                                             residuals = residuals,
-  #                                                             nu = nu,
-  #                                                             tau_mu = tau_mu, c_value = c_value,
-  #                                                             phi = phi,
-  #                                                             number_trees = number_trees,tau_multiplier = tau_multiplier)
-  
-  # calculating the likelihood from the new step
-  tree_from_nu_proposal <- inverse_omega_plus_I(tree = current_tree_iter,
-                                                x = x,nu = nu_proposal, tau = tau,
-                                                phi = phi,gp_variables = gp_variables)
-  
-  # likelihood_nu_proposal <- tree_complete_conditional_from_mu(tree = tree_from_nu_proposal,
-  #                                                     x = x, tau = tau,
-  #                                                     residuals = residuals,
-  #                                                     nu = nu_proposal,
-  #                                                     tau_mu = tau_mu, c_value = c_value,
-  #                                                     phi = phi,
-  #                                                     number_trees = number_trees,tau_multiplier = tau_multiplier)
-  
-  likelihood_nu_proposal <- tree_complete_conditional(tree = tree_from_nu_proposal,
-                                                      x = x,
-                                                      residuals = residuals,
-                                                      nu = nu_proposal,
-                                                      tau_mu = tau_mu, c_value = c_value,
-                                                      phi = phi,
-                                                      number_trees = number_trees,tau_multiplier = tau_multiplier)
-  # Calculating the new likelihood
-  
-  # Old phi likelhood
-  l_old_nu <- likelihood_object$log_posterior + 
-    sum(dgamma(x = nu,shape = a,rate = d,log = TRUE))
-  
-  
-  
-  # Proposal likelihood
-  l_proposal_nu <- likelihood_nu_proposal$log_posterior +
-    sum(dgamma(x = nu_proposal,shape = a,rate = d,log = TRUE))
-  
-  
-  
-  
-  # Probability of accept the new proposed tree
-  acceptance_nu <- exp(l_proposal_nu - l_old_nu)
-  
-  # If storage for phi
-  
-  if (runif(1) < acceptance_nu) { #
-    
-    # Nu boolean to see if was accepted or not
-    nu_boolean <- TRUE
-    
-    return(list(nu_boolean = nu_boolean,
-                likelihood_object = likelihood_nu_proposal,
-                tree = tree_from_nu_proposal,
-                nu_proposal = nu_proposal)) # Returning the proposal value for nu
-  }else{
-    nu_boolean <- FALSE
-    return( list(nu_boolean = nu_boolean)) # Returning the old value for nu
-  } #
-}
+
 
 # ==============#
 # rBart-GP FUNCTION
-my_rBart_gp <- function(x, y, x_test, # Setting the training data matrix
+my_rBart_gp <- function(x, y,
                         number_trees = 2, # Setting the number of trees
                         node_min_size = round(0.05 * length(y)), # Min node size,
                         mu = 0,
@@ -1532,7 +404,6 @@ my_rBart_gp <- function(x, y, x_test, # Setting the training data matrix
                         tau = 1, # Tau from prior,
                         nu_vector = NULL, # This will be defining the nu the default value
                         phi_vector = rep(0.1 / (sqrt(number_trees)), number_trees), # This parameter is a "scale paramter" to the GP
-                        c_value = number_trees,
                         n_iter = 1250, # Number of iterations
                         burn = n_iter/2, # Number of burn
                         thin = 1, # Number of thin
@@ -1541,9 +412,7 @@ my_rBart_gp <- function(x, y, x_test, # Setting the training data matrix
                         seed = NULL, # Alpha vector values from the Dirichlet prior
                         scale_boolean = TRUE,
                         a_tau = 1, # Prior from a_v_ratio gamma
-                        d_tau = 1, # Prior from d_v_ratio gamma,
-                        a_nu = 1, # Prior from a_tau
-                        d_nu = 1, # Prior from d_tau
+                        d_tau = 3, # Prior from d_v_ratio gamma,
                         predictions=matrix(0, nrow = number_trees, ncol = nrow(x)),
                         predictions_list =  NULL,
                         discrete_phi_boolean = FALSE,
@@ -1553,15 +422,13 @@ my_rBart_gp <- function(x, y, x_test, # Setting the training data matrix
                         phi_update = TRUE,
                         gp_variables = colnames(x),   # Selecting the GP-Variables
                         p = 1, # Shrink main parameter from GP-BART
-                        K_bart,
+                        K_bart = 2,
+                        prob_tau = 0.9,
                         error_handling_residuals = FALSE,
                         kappa = 0.5, bart_boolean = TRUE, bart_number_iter = (n_iter/2-1)
                         
 ) {
   
-  
-  # Scaling the train data
-  data_scaled <- unit_cube_scale(rbind(x, x_test))
   
   # Adjusting the kappa (avoiding the Infinity error)
   if(kappa == 1 ){
@@ -1570,24 +437,14 @@ my_rBart_gp <- function(x, y, x_test, # Setting the training data matrix
   
   if(kappa == 0 ){
     kappa <- kappa + 2*.Machine$double.eps
-    # print(kappa)
   }
   
-  #==
-  
+
   # Getting the maximum and minimum values from a distance matrix
   distance_matrix_x <- symm_distance_matrix(m1 = x)
   distance_range <- range(distance_matrix_x[upper.tri(distance_matrix_x)])
   distance_min <- sqrt(distance_range[1])
   distance_max <- sqrt(distance_range[2])
-  
-  # Option to scale X 
-  if(x_scale){
-    x <- data_scaled[1:nrow(x), , drop = FALSE]
-    x_test_scaled <- data_scaled[(nrow(x) + 1):nrow(data_scaled), , drop = FALSE]
-  } else {
-    x_test_scaled <- x_test
-  }
   
   # Setting seed
   set.seed(seed)
@@ -1612,11 +469,17 @@ my_rBart_gp <- function(x, y, x_test, # Setting the training data matrix
     # Defing the nu vector if not in default
     if( is.null(nu_vector) ){
       # Defining the nu value values on the maximum and minimum
-      nu_vector <- rep((4*number_trees*K_bart^2)/((max(y_scale)-min(y_scale))^2),number_trees)
+      nu_vector <- rep((4*number_trees*K_bart^2)/((max(y_scale)-min(y_scale))^2),number_trees)/(1-kappa)
     }
     
     # Calculating \tau_{\mu} based on the scale of y
-    tau_mu <- (4*(number_trees)*K_bart^2)/((1-kappa)*(max(y_scale)-min(y_scale))^2)
+    tau_mu <- ((4*(number_trees)*K_bart^2)/((max(y_scale)-min(y_scale))^2))/kappa
+    
+    # Getting the optimal tau values
+    d_tau <- rate_tau(x = x,
+                      y = y_scale,
+                      prob = prob_tau,
+                      shape = a_tau)
     
   } else {
     
@@ -1632,13 +495,16 @@ my_rBart_gp <- function(x, y, x_test, # Setting the training data matrix
     # Calculating \tau_{\mu} based on the scale of y
     tau_mu <- (4*(number_trees)*K_bart^2)/((1-kappa)*(max(y_scale)-min(y_scale))^2)
     
+    # Getting the optimal tau values
+    d_tau <- rate_tau(x = x,
+                      y = y_scale,
+                      prob = prob_tau,
+                      shape = a_tau)
+
   }
   
   # Getting the number of observations 
   n <- length(y)
-  
-  # Adjusting the \nu vector with the kappa values
-  nu_vector <- nu_vector / kappa
   
   # Creating the stor of accepted tree verbs and which split it was 
   verb_store_list <- list()
@@ -1661,7 +527,7 @@ my_rBart_gp <- function(x, y, x_test, # Setting the training data matrix
   
   # Error of the matrix
   if (is.null(colnames(x))) {
-    stop("Inset a valid NAMED matrix")
+    stop("Insert a valid NAMED matrix")
   }
   
   if (node_min_size == 0) {
@@ -1669,20 +535,15 @@ my_rBart_gp <- function(x, y, x_test, # Setting the training data matrix
   }
   
   if (length(nu_vector) != number_trees) {
-    stop("Inset a valid \\nu vector for the number of trees")
+    stop("Insert a valid \\nu vector for the number of trees")
   }
   
   if (length(phi_vector) != number_trees) {
-    stop("Inset a valid \\phi vector for the number of trees")
+    stop("Insert a valid \\phi vector for the number of trees")
   }
   
-  # Set the minimum node size to 20
-  # if (node_min_size <= round(0.05 * length(y))) {
-  #   warning("\n The default value for min_node_size was settled to 15.")
-  #   min_node_size <- 15
-  # }
-  
-  # Recomendation about the min_node_size
+
+  # Recommendation about the min_node_size
   if (node_min_size < 15) {
     warning("\n It is recommended that the min_node_size should be of at least 15 observations.")
   }
@@ -1693,8 +554,6 @@ my_rBart_gp <- function(x, y, x_test, # Setting the training data matrix
   tau_store <- c()
   nu_store <- matrix(NA, ncol = number_trees, nrow = store_size)
   signal_pc_store <- matrix(NA, ncol = number_trees, nrow = store_size)
-  
-  
   
   y_hat_store <- matrix(NA, ncol = length(y), nrow = store_size)
   y_hat_store_proposal <- matrix(NA, ncol = length(y), nrow = store_size)
@@ -1710,7 +569,6 @@ my_rBart_gp <- function(x, y, x_test, # Setting the training data matrix
   loglike_tree_residuals <- numeric()
   loglike_fixed_tree_residuals_matrix <- matrix(NA, nrow = store_size, ncol = number_trees)
   loglike_tree_residuals_matrix <- matrix(NA, nrow = store_size, ncol = number_trees)
-  
   
   full_cond_store <- matrix(NA, ncol = number_trees, nrow = store_size)
   phi_store <- matrix(NA, ncol = number_trees, nrow = store_size)
@@ -1740,68 +598,35 @@ my_rBart_gp <- function(x, y, x_test, # Setting the training data matrix
   a <- min(y)
   b <- max(y)
   
-  # Getting the verb list
-  # verb_store <- data.frame(verb = NA, accepted = NA)
-  
-  
   # Setting initial values for phi vector
   for (i in 1:n_iter) {
     
-    # print(verb_store)
-    
     utils::setTxtProgressBar(progress_bar, i)
     
-    # Returning to the GP-BART approach
-    # if(i >= bart_number_iter){
-    #   bart_boolean <- FALSE
-    # }
+    # Changing the bart boolean, when reach the maximum
+    if(i >= bart_number_iter){
+      bart_boolean <- FALSE
+    }
     
     if ((i > burn) & ((i %% thin) == 0)) {
       
+      # Saving the store of the other ones
       curr <- (i - burn) / thin
       tree_store[[curr]] <- current_trees
-      if(scale_boolean){
-        
-        # Returning to the original
-        # tau_store[[curr]] <- (tau)/sqrt((b-a))
-        tau_store[[curr]] <- tau
-      } else{
-        tau_store[[curr]] <- tau
-      }
-      y_hat_store[curr, ] <- if (number_trees == 1) {
-        
-        # In case of normalizing
-        if(scale_boolean){
-          # Keep it the regular scale
-          # unnormalize_y(predictions, a = a, b = b)
-          predictions 
-        }else{
-          predictions
-        }
-      } else {
-        # colSums(unnormalize_y(predictions, a = a, b = b))
-        colSums(predictions)
-      }
+      tau_store[[curr]] <- tau
       
-      current_partial_residuals_list[[curr]] <- 
-        if(scale_boolean){
-          
-          # I need to keep the same because of the \nu values 
-          # unnormalize_y(current_partial_residuals_matrix, a = a, b = b)
-          current_partial_residuals_matrix
-        } else {
-          current_partial_residuals_matrix
-        } 
+      y_hat_store[curr, ] <-  colSums(predictions)
+      
+      # Saving the current partial
+      current_partial_residuals_list[[curr]] <- current_partial_residuals_matrix
+        
       
       # Saving the predictions
       current_predictions_list[[curr]] <- predictions
-      
-      
-      # y_hat_store_proposal[curr,] = predictions_proposal
+
       phi_store[curr, ] <- phi_vector
       phi_proposal_store[curr, ] <- phi_vector_proposal
       nu_store[curr, ] <- nu_vector
-      # print(verb_store)
       verb_store_list[[curr]] <- verb_store
       
       
@@ -1934,9 +759,8 @@ my_rBart_gp <- function(x, y, x_test, # Setting the training data matrix
           
         } # End of accept if statement
         
-        # print(verb_store)
-        
-        # # # To update the mu values
+
+        # To update the mu values
         current_trees[[j]] <- update_mu_bart(
           tree = current_trees[[j]],
           x = x,
@@ -1944,12 +768,9 @@ my_rBart_gp <- function(x, y, x_test, # Setting the training data matrix
           tau = tau,
           tau_mu = tau_mu)
         
-        
-        # EQUATION FROM SECTION 4
-        # ==== Using the prediction from R_star_bar
-        predictions[j, ] <- update_residuals_bart(
-          tree = current_trees[[j]], x = x,
-          residuals = current_partial_residuals
+        # Updating the BART predictions      
+        predictions[j, ] <- update_predictions_bart(
+          tree = current_trees[[j]], x = x
         )
         
         
@@ -2031,21 +852,21 @@ my_rBart_gp <- function(x, y, x_test, # Setting the training data matrix
         
         
         # Calculating the likelihood of the new tree
-        likelihood_new <- tree_complete_conditional(
+        likelihood_new <- tree_complete_conditional_gpbart(
           tree = new_trees[[j]], # Calculate the full conditional
           residuals = current_partial_residuals,
           x = x,tau_mu = tau_mu,
-          nu = nu_vector[j], phi = phi_vector[j], c_value = c_value,
+          nu = nu_vector[j], phi = phi_vector[j], 
           number_trees = number_trees,
           tau_multiplier = tau_multiplier
         )
         
         # Calculating the likelihood of the old tree
-        likelihood_old <- tree_complete_conditional(
+        likelihood_old <- tree_complete_conditional_gpbart(
           tree = current_trees[[j]], # Calculate the full conditional
           residuals = current_partial_residuals,
           x = x,tau_mu = tau_mu,
-          nu = nu_vector[j], phi = phi_vector[j], c_value = c_value,
+          nu = nu_vector[j], phi = phi_vector[j], 
           number_trees = number_trees,
           tau_multiplier = tau_multiplier
         )
@@ -2118,7 +939,7 @@ my_rBart_gp <- function(x, y, x_test, # Setting the training data matrix
           x = x,
           residuals = current_partial_residuals,
           likelihood_object = likelihood_object,
-          phi = phi_vector[j], nu = nu_vector[j], c_value = c_value)
+          phi = phi_vector[j], nu = nu_vector[j])
         
         
         # EQUATION FROM SECTION 4
@@ -2130,51 +951,13 @@ my_rBart_gp <- function(x, y, x_test, # Setting the training data matrix
           error_handling_residuals = error_handling_residuals # Boolean to check if handle the residuals or not
         )
         
-        # predictions[j, ] <- update_g(
-        #   tree = current_trees[[j]], x = x,
-        #   residuals = current_partial_residuals,
-        #   phi = phi_vector[j], nu = nu_vector[j],p = p
-        # )
-        
-        # Plot the current residuals, and the prediction from it
-        # Updating the \nu value
-        if(nu_update){
-          mh_update_nu<-update_nu(x = x, y = y_scale,
-                                  current_tree_iter = current_trees[[j]],
-                                  likelihood_object = likelihood_object,
-                                  residuals = current_partial_residuals,
-                                  phi = phi_vector[j],
-                                  nu = nu_vector[j],
-                                  a_nu = a_nu,
-                                  d_nu = d_nu,
-                                  c_value = c_value,
-                                  number_trees = number_trees,
-                                  gp_variables = gp_variables,
-                                  tau = tau,
-                                  tau_mu = tau_mu)
-          
-          # In case of accept the update over \nu update everything
-          if(mh_update_nu$nu_boolean){
-            
-            # Updating the tree and the \nu object from the tree
-            current_trees[[j]] <- mh_update_nu$tree
-            
-            # Updating the likelihood objects
-            likelihood_object <- mh_update_nu$likelihood_object
-            
-            # Updating the nu value
-            nu_vector[j] <- mh_update_nu$nu_proposal
-            
-          } # If doesn't accept, nothing changes.
-        }
-        
+
         # To update phi
         if(phi_update){
           mh_update_phi<- update_phi_marginal(current_tree_iter = current_trees[[j]],
                                               residuals = current_partial_residuals,
                                               x = x,nu = nu_vector[j],phi = phi_vector[j],
                                               gp_variables = gp_variables,
-                                              c_value = c_value,
                                               likelihood_object = likelihood_object,
                                               number_trees = number_trees,
                                               discrete_phi = discrete_phi_boolean,
@@ -2244,24 +1027,22 @@ my_rBart_gp <- function(x, y, x_test, # Setting the training data matrix
     X = x,
     scale_boolean = scale_boolean,
     acc_ratio = acc_ratio,
-    acc_ratio_nu = acc_ratio_nu,
     acc_ratio_phi = acc_ratio_phi,
     signal_pc_store = signal_pc_store,
     iter = n_iter,
     burn = burn,
     thin = thin,
     store_size = store_size,
-    number_trees = number_trees, node_min_size = node_min_size, c_value = c_value,
+    number_trees = number_trees, node_min_size = node_min_size, 
     log_like_nu_store_proposal = log_like_nu_store_proposal,
     a_min = a_min,
     b_max = b_max,
     a_tau = a_tau,
     d_tau = d_tau,
-    a_nu = a_nu,
-    d_nu = d_nu,
-    y_hat_store_proposal = y_hat_store_proposal, current_partial_residuals_list = current_partial_residuals_list,
-    beta = beta, x_test = x_test_scaled,
-    current_predictions_list = current_predictions_list, nu_multiplier = nu_multiplier , scale_multiplier = scale_multiplier,
+    current_partial_residuals_list = current_partial_residuals_list,
+    beta = beta, 
+    current_predictions_list = current_predictions_list,
+    nu_multiplier = nu_multiplier , scale_multiplier = scale_multiplier,
     p = p, tau_mu = tau_mu, kappa = kappa,
     verb_store_list = verb_store_list
   ))
@@ -2272,7 +1053,7 @@ my_rBart_gp <- function(x, y, x_test, # Setting the training data matrix
 update_phi_marginal <- function(x, current_tree_iter,residuals,
                                 seed = NULL,
                                 tau, 
-                                c_value,tau_mu,
+                                tau_mu,
                                 phi, nu,number_trees,
                                 likelihood_object,p,gp_variables,
                                 discrete_phi = TRUE,
@@ -2292,11 +1073,11 @@ update_phi_marginal <- function(x, current_tree_iter,residuals,
                                                  phi = phi_proposal,gp_variables = gp_variables)
   
   
-  likelihood_phi_proposal <- tree_complete_conditional(tree = tree_from_phi_proposal,
+  likelihood_phi_proposal <- tree_complete_conditional_gpbart(tree = tree_from_phi_proposal,
                                                        x = x,
                                                        residuals = residuals,
                                                        nu = nu, tau_mu = tau_mu,
-                                                       phi = phi_proposal,c_value = c_value,
+                                                       phi = phi_proposal,
                                                        number_trees = number_trees,tau_multiplier = tau_multiplier)
   
   # Old phi likelhood
@@ -2340,7 +1121,7 @@ update_phi_marginal <- function(x, current_tree_iter,residuals,
 update_phi <- function(x, current_tree_iter,residuals,
                        seed = NULL,
                        tau, 
-                       c_value,tau_mu,
+                       tau_mu,
                        phi, nu,number_trees,
                        likelihood_object,p,gp_variables,
                        discrete_phi = TRUE,
@@ -2361,11 +1142,11 @@ update_phi <- function(x, current_tree_iter,residuals,
                                                  phi = phi_proposal,gp_variables = gp_variables)
   
   
-  likelihood_phi_proposal <- tree_complete_conditional(tree = tree_from_phi_proposal,
+  likelihood_phi_proposal <- tree_complete_conditional_gpbart(tree = tree_from_phi_proposal,
                                                        x = x,
                                                        residuals = residuals,
                                                        nu = nu, tau_mu = tau_mu,
-                                                       phi = phi_proposal,c_value = c_value,
+                                                       phi = phi_proposal, 
                                                        number_trees = number_trees,tau_multiplier = tau_multiplier)
   
   # Selecting the terminal nodes
@@ -2510,7 +1291,6 @@ update_signal_pc <- function(current_iter_tree, # Current j tree from the iterat
                              a_v_ratio,
                              d_v_ratio,
                              beta_signal_pc,
-                             c_value = c_value,
                              v_ratio,number_trees,
                              tau_multiplier
 ){
@@ -2856,6 +1636,12 @@ predict_gaussian_from_multiple_trees <- function(multiple_trees, # A list of tre
             nu = nu, phi = phi
           ) 
           
+          cat(" GP-predicted \n")
+          print(c(gp_process$mu_pred))
+          cat("\n")
+          
+          cat(" GP-observed")
+          print((partial_residuals[m,new_tree[[list_nodes[[i]]]]$observations_index]) %>% c)
           # Creating the mu vector
           y_pred[new_tree[[list_nodes[i]]]$test_index] <- gp_process$mu_pred + new_tree[[list_nodes[[i]]]]$mu
           
@@ -2899,11 +1685,10 @@ count_terminal_nodes <- function(tree) {
 
 # Predict rBART model
 
-my_predict_rBART <- function(rBart_model, type = c("all", "mean", "median"),
+my_predict_rBART <- function(rBart_model, x_test,type = c("all", "mean", "median"),
                              pred_bart_only = FALSE) {
   
-  # Loading x_test
-  x_test <- rBart_model$x_test
+  # Loading x_train
   x_train <- rBart_model$X
   
   # Number of iters of bayesian simulation
@@ -2950,7 +1735,7 @@ my_predict_rBART <- function(rBart_model, type = c("all", "mean", "median"),
       multiple_trees = current_tree, x_train = rBart_model$X,
       x_new = x_test, partial_residuals = rBart_model$current_partial_residuals_list[[i]],
       phi_vector = rBart_model$phi_store[i, ], nu_vector = rBart_model$nu_store[i,],
-      tau = rBart_model$tau_store[i],pred_bart_only = pred_bart_only
+      tau = rBart_model$tau_store[[i]],pred_bart_only = pred_bart_only
     )
     
     # Iterating over all trees (test)
@@ -2967,10 +1752,7 @@ my_predict_rBART <- function(rBart_model, type = c("all", "mean", "median"),
       y_hat_matrix[i, ] <- colSums(y_pred_aux$all_tree_pred)
       y_sd_pi_matrix[i, ] <- colSums(y_pred_final_pi)
     }
-    # Calculating the diagonal from all matrix
-    # cov_hat_matrix[i, ] <- sqrt(diag(Reduce("+", cov_pred_final)))
-    
-    # cov_hat_matrix[i,]<-sqrt(diag(do.call("mean",model_each_aux$variance_matrix)))
+
     y_list_matrix[[i]] <- y_pred_final
     
     cov_hat_matrix_list[[i]] <- Reduce("+", cov_pred_final)
@@ -2992,8 +1774,8 @@ my_predict_rBART <- function(rBart_model, type = c("all", "mean", "median"),
     ),
     sd = switch(type,
                 all = cov_hat_matrix,
-                mean = mean(rBart_model$tau_store^(-1/2)),
-                median = median(rBart_model$tau_store^(-1/2))
+                mean = mean(unlist(rBart_model$tau_store)^(-1/2)),
+                median = median(unlist(rBart_model$tau_store)^(-1/2))
     )
   )
   
@@ -3128,60 +1910,6 @@ unit_cube_scale_new_points_uni <- function(x,x_new){
   
 }
 
-# Getting a fixed and true TREE
-fixed_tree <- function(x_train,x_test){
-  
-  # Scaling the train data
-  data_scaled <- unit_cube_scale(rbind(x, x_test))
-  # data_scaled <- (rbind(x, x_test))
-  
-  x <- data_scaled[1:nrow(x), , drop = FALSE]
-  
-  x_test_scaled <- data_scaled[(nrow(x) + 1):nrow(data_scaled), , drop = FALSE]
-  
-  # -0.1575854  0.5167328
-  
-  
-  
-  node_1 <- list(node_number = 1,
-                 observations_index = which(x_train <= -0.157),
-                 depth_node = 1,
-                 node_var = "x",
-                 node_var_split  = -0.158,
-                 left = 1,
-                 right = 0,
-                 parent_node = NA,
-                 terminal = 1,
-                 mu = 1,
-                 tau = 1)
-  
-  node_2 <- list(node_number = 1,
-                 observations_index = which(x_train <= -0.157 & x_train <= 0.517),
-                 depth_node = 1,
-                 node_var = "x",
-                 node_var_split  = 0.517,
-                 left = 1,
-                 right = 0,
-                 parent_node = 1,
-                 terminal = 1,
-                 mu = 1,
-                 tau = 1)
-  
-  node_3 <- list(node_number = 1,
-                 observations_index = which(x_train <= -0.157 & x_train <= 0.517),
-                 depth_node = 1,
-                 node_var = "x",
-                 node_var_split  = 0.517,
-                 left = 0,
-                 right = 1,
-                 parent_node = 1,
-                 terminal = 1,
-                 mu = 1,
-                 tau = 1)
-  
-  return(list(node_1 = node_1, node_2 = node_2, node_3 = node_3))
-  
-}
 
 # Getting the likelihood from the Gaussian Processes
 neg_loglike<-function(prediction_object,
