@@ -1,7 +1,7 @@
-# Getting a generic datasert
+# Getting a generic dataset
 library(mlbench)
 friedman_example <- mlbench.friedman1(n = 50)
-x <- friedman_example$x # Covarariate matrix
+x <- friedman_example$x # Covariate matrix
 y <- friedman_example$y # Target variable
 number_trees = 2 # Number of trees
 control = list(node_min_size = 5,
@@ -23,7 +23,7 @@ init = list(tau = 1, # Initial values
 
 
 
-# list(x = x, # Covarariate matrix
+# list(x = x, # Covariate matrix
 #     y = y_scale, # Target variable
 #     tree_store = tree_store, # Tree store
 #     residuals_store = residuals_store,
