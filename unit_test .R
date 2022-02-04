@@ -1,3 +1,6 @@
+# This file is just to measure if the main code for BART is running well, isn't made for 
+#evaluation purposes.
+
 # Importing data and library
 rm(list=ls())
 library(mlbench)
@@ -21,7 +24,6 @@ bart_mod <- bart(x = x_train,y = y_train,number_trees = 20,
 
 bart_pred <- predict_bart(bart_mod = bart_mod, newdata = x_test,type = "mean")
 
-crossprod( (bart_pred-y_test))
 
 x_train <- cross_validation_object[[1]]$x_train
 y_train <- cross_validation_object[[1]]$y_train
@@ -32,5 +34,7 @@ dbart_mod <- dbarts::bart(x.train = x_train,
              ntree = 20,keeptrees = TRUE)
 
 crossprod( (y_test- predict(dbart_mod,newdata = x_test) %>% apply(2,mean)))
+crossprod( (bart_pred-y_test))
+
 bart_pred
 y_test
