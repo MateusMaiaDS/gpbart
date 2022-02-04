@@ -597,7 +597,8 @@ bart <- function(x, # Covarariate matrix
               control = list(node_min_size = node_min_size,
                              scale_boolean = scale_boolean,
                              a_min = a_min,
-                             b_max = b_max),
+                             b_max = b_max,
+                             rotation_boolean = rotation_boolean),
               prior_parameter = list(a_tau = a_tau, # Parameters from the prior
                                      d_tau = d_tau,
                                      k_bart = k_bart,

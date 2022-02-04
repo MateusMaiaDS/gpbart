@@ -3,23 +3,6 @@
 # Loading test data
 library(magrittr)
 library(Rcpp)
-source("fast_gp_multiple_tau.R")
-
-
-
-# Scaling the data
-unit_cube_scale <- function(x) {
-  
-  # Scaling to -1 to 1 function
-  scaling <- function(z) {
-    (2 * z - (max(z) + min(z))) / (max(z) - min(z))
-  }
-  
-  # Applying on all covariates
-  x_scaled <- apply(x, 2, scaling)
-  return(x_scaled)
-}
-
 
 
 # ==================================#
@@ -77,22 +60,6 @@ tree_complete_conditional_gpbart <- function(tree, x, residuals, nu = 1, phi = 1
   
   log_posterior <- -0.5*sum(log_det_Omega_plus_I_tau) - 0.5 * sum(log(S/tau_mu)) - 0.5*sum(RTR) + 0.5 * sum(S^(-1) *R_Omega_I_one^2)  
   
-  # aux <- c()
-  # aux2 <- c()
-  # for(i in 1:length(residuals_terminal_nodes)){
-  #   aux[i] =+ sum(residuals_terminal_nodes[[i]]^2)
-  #   aux2[i] =+ sum(residuals_terminal_nodes[[i]])
-  # }
-  # 
-  # sum(aux)
-  # sum(aux2)
-  
-  
-  # # Residuals times tau
-  # 0.5*n*log(tau) # First term
-  # +0.5*sum(log(tau_mu/(tau_mu+nodes_size*tau))) # sencond element
-  # -0.5*tau*sum(aux) # third element
-  # 0.5*(tau^2)*sum((aux2^2)/(tau_mu+nodes_size*tau))
   
   return(list(log_posterior = log_posterior,
               S = S,
@@ -157,10 +124,6 @@ update_mu <- function(tree,
                  )
                }, SIMPLIFY = FALSE
   )
-  
-  # cat("Mu mean:",unlist(mu_mean),"\n")
-  # cat("Mu sd:",unlist(mu_var),"\n")
-  
   
   # Adding the mu values calculated
   for (i in 1:length(names_terminal_nodes)) {
@@ -358,9 +321,6 @@ get_prediction <- function(trees, x, single_tree = FALSE) {
   # Selecting just one tree
   if (single_tree) {
     
-    # Acessing trees
-    # trees<-trees[[1]]
-    
     # Creating the predictions vector
     predictions <- rep(0, nrow(x))
     
@@ -552,7 +512,6 @@ my_rBart_gp <- function(x, y,
   store_size <- (n_iter - burn) / thin
   tree_store <- vector("list", store_size)
   tau_store <- c()
-  nu_store <- matrix(NA, ncol = number_trees, nrow = store_size)
   signal_pc_store <- matrix(NA, ncol = number_trees, nrow = store_size)
   
   y_hat_store <- matrix(NA, ncol = length(y), nrow = store_size)
@@ -561,8 +520,7 @@ my_rBart_gp <- function(x, y,
   # Storing the likelihoods
   log_lik_store <- rep(NA, store_size)
   log_lik_store_fixed_tree <- rep(NA,store_size)
-  log_like_nu_store_proposal <- matrix(NA, nrow = (n_iter), ncol = 2)
-  
+
   
   # Getting the numbers
   loglike_fixed_tree_residuals <- numeric()
@@ -582,8 +540,7 @@ my_rBart_gp <- function(x, y,
     current_trees_proposal[[i]] <- stump(x = x, tau = tau, mu =  mu)
   }
   
-  # if(number_trees==1) current_trees<-current_trees[[1]] #Just to simplify in case of just one tree
-  
+
   names(current_trees) <- (sapply(1:number_trees, function(x) paste0("tree_", x))) # Naming each tree
   names(current_trees_proposal) <- (sapply(1:number_trees, function(x) paste0("tree_", x))) # Naming each tree
   
@@ -626,7 +583,6 @@ my_rBart_gp <- function(x, y,
 
       phi_store[curr, ] <- phi_vector
       phi_proposal_store[curr, ] <- phi_vector_proposal
-      nu_store[curr, ] <- nu_vector
       verb_store_list[[curr]] <- verb_store
       
       
@@ -1022,19 +978,17 @@ my_rBart_gp <- function(x, y,
     full_cond = full_cond_store,
     phi_store = phi_store,
     phi_proposal_store = phi_proposal_store,
-    nu_store = nu_store,
+    nu_vector = nu_vector,
     y = y_scale,
     X = x,
     scale_boolean = scale_boolean,
     acc_ratio = acc_ratio,
     acc_ratio_phi = acc_ratio_phi,
-    signal_pc_store = signal_pc_store,
     iter = n_iter,
     burn = burn,
     thin = thin,
     store_size = store_size,
     number_trees = number_trees, node_min_size = node_min_size, 
-    log_like_nu_store_proposal = log_like_nu_store_proposal,
     a_min = a_min,
     b_max = b_max,
     a_tau = a_tau,
@@ -1244,6 +1198,7 @@ update_phi <- function(x, current_tree_iter,residuals,
   } #
 }
 
+# Function to return the depth trees
 
 tree_depth_hist <- function(gpbart_model) {
   tree_depth <- matrix(NA, nrow = length(gpbart_model$trees), ncol = gpbart_model$number_trees)
@@ -1262,6 +1217,7 @@ tree_depth_hist <- function(gpbart_model) {
   return(tree_depth)
 }
 
+# Function to count th enumber of terminal nodes in a tree
 tree_count_terminals <- function(gpbart_model) {
   tree_depth <- matrix(NA, nrow = length(gpbart_model$trees), ncol = gpbart_model$number_trees)
   
@@ -1271,115 +1227,6 @@ tree_count_terminals <- function(gpbart_model) {
       tree <- tree_iter[[i]]
       tree_depth[k, i] <- lapply(tree, function(x) {
         x$termina
-      }) %>%
-        unlist() %>%
-        sum()
-    }
-  }
-  return(tree_depth)
-}
-
-
-# #Do a MH for PHI
-update_signal_pc <- function(current_iter_tree, # Current j tree from the iteration
-                             x = x, 
-                             residuals = current_partial_residuals,
-                             nu,
-                             phi,
-                             signal_pc,
-                             alpha_signal_pc,
-                             a_v_ratio,
-                             d_v_ratio,
-                             beta_signal_pc,
-                             v_ratio,number_trees,
-                             tau_multiplier
-){
-  
-  # Calculating the values of a and d (FOR \TAU)
-  a_tau = tau_multiplier/( (1-signal_pc)*a_v_ratio )
-  d_tau = 1/d_v_ratio
-  
-  # Calculating the values of a and d for \nu
-  a_nu = 1*(1-signal_pc)/( signal_pc*a_v_ratio )
-  d_nu = 1/d_v_ratio
-  
-  
-  # Increased the range of tree proposal
-  signal_pc_proposal <- sample(seq(from = 0.3001, to = 1, by = 0.001), size = 1) # Sampling new value
-  
-  # Calculating the proposal a and d for tau
-  a_proposal_tau = tau_multiplier/( (1-signal_pc_proposal)*a_v_ratio )
-  d_proposal_tau = 1/d_v_ratio
-  
-  
-  # Calculating the proposal of a and d for \nu
-  a_proposal_nu = 1*(1-signal_pc_proposal)/( signal_pc_proposal*a_v_ratio )
-  d_proposal_nu = 1/d_v_ratio
-  
-  # Selecting the terminal nodes
-  terminal_nodes <- current_iter_tree[names(which(sapply(current_iter_tree, function(x) {
-    x$terminal == 1
-  })))]
-  
-  # Seleciting the tau values
-  tau_j <- sapply(terminal_nodes, function(x) {
-    x$tau
-  })
-  
-  
-  
-  # Calculating the likelihood for the proposal value
-  l_proposal_signal_pc <- sum(dgamma(tau_j,shape = a_proposal_tau,rate=d_proposal_tau,log = TRUE))+
-    sum(dgamma(nu,shape = a_proposal_nu,rate=d_proposal_nu,log = TRUE))+
-    dbeta(x = signal_pc_proposal, shape1 = alpha_signal_pc, shape2 = beta_signal_pc, log = TRUE)
-  
-  
-  # Calculating the likelihood for the old value
-  l_old_signal_pc<- sum(dgamma(tau_j,shape = a_tau,rate=d_tau,log = TRUE))+
-    sum(dgamma(nu,shape = a_nu,rate=d_nu,log = TRUE))+
-    dbeta(x = signal_pc, shape1 = alpha_signal_pc, shape2 = beta_signal_pc, log = TRUE)
-  
-  
-  # Probability of accept the new proposed tree
-  acceptance_signal_pc <- exp(l_proposal_signal_pc - l_old_signal_pc)
-  
-  # If storage for phi
-  
-  if (runif(1) < acceptance_signal_pc) { #
-    return(signal_pc_proposal) # Returning the proposal value for phi
-  }else{
-    return(signal_pc) # Returning the old value for phi
-  } #
-  
-}
-
-
-tree_depth_hist <- function(gpbart_model) {
-  tree_depth <- matrix(NA, nrow = length(gpbart_model$trees), ncol = gpbart_model$number_trees)
-  
-  for (k in 1:length(gpbart_model$trees)) {
-    tree_iter <- gpbart_model$trees[[k]]
-    for (i in 1:gpbart_model$number_trees) {
-      tree <- tree_iter[[i]]
-      tree_depth[k, i] <- lapply(tree, function(x) {
-        x$depth
-      }) %>%
-        unlist() %>%
-        max()
-    }
-  }
-  return(tree_depth)
-}
-
-tree_count_terminals <- function(gpbart_model) {
-  tree_depth <- matrix(NA, nrow = length(gpbart_model$trees), ncol = gpbart_model$number_trees)
-  
-  for (k in 1:length(gpbart_model$trees)) {
-    tree_iter <- gpbart_model$trees[[k]]
-    for (i in 1:gpbart_model$number_trees) {
-      tree <- tree_iter[[i]]
-      tree_depth[k, i] <- lapply(tree, function(x) {
-        x$terminal
       }) %>%
         unlist() %>%
         sum()
@@ -1461,43 +1308,6 @@ get_mu_values <- function(gpbart_model) {
   }
   return(mu_iters)
 }
-
-
-get_tau_ratio_values <- function(gpbart_model) {
-  
-  # n_iter
-  n_iter <- length(gpbart_model$trees)
-  
-  tau_ratio_iters <- rep(list(NA), gpbart_model$number_trees)
-  
-  num_trees <- gpbart_model$number_trees
-  
-  for (j in 1:n_iter) {
-    num_trees <- length(gpbart_model$trees[[j]])
-    # Creating dummy for tau_ratio terminals
-    tau_ratio_terminals <- matrix(NA, nrow = num_trees, ncol = 50)
-    colnames(tau_ratio_terminals) <- paste0("node_", 0:49)
-    
-    for (k in 1:num_trees) {
-      # Tree
-      tree <- gpbart_model$trees[[j]][[k]]
-      all_nodes <- names(tree)
-      
-      
-      for (nodes in 1:length(all_nodes)) {
-        if (tree[[all_nodes[nodes]]]$terminal == 1) {
-          # tree[[nodes]]$tau_ratio <- sample(c(0.001,seq(0.005,10,by = 0.005),10,50,100), 1)
-          tau_ratio_terminals[k, as.numeric(stringr::str_extract(all_nodes[nodes], pattern = "\\(?[0-9,.]+\\)?")) + 1] <- tree[[all_nodes[nodes]]]$tau_ratio
-        }
-      }
-    }
-    
-    # Saving all
-    tau_ratio_iters[[j]] <- tau_ratio_terminals
-  }
-  return(tau_ratio_iters)
-}
-
 
 # ORIGINAL PREDICT GAUSSIAN FROM MULTIPLE TREES
 predict_gaussian_from_multiple_trees <- function(multiple_trees, # A list of trees
@@ -1636,12 +1446,6 @@ predict_gaussian_from_multiple_trees <- function(multiple_trees, # A list of tre
             nu = nu, phi = phi
           ) 
           
-          cat(" GP-predicted \n")
-          print(c(gp_process$mu_pred))
-          cat("\n")
-          
-          cat(" GP-observed")
-          print((partial_residuals[m,new_tree[[list_nodes[[i]]]]$observations_index]) %>% c)
           # Creating the mu vector
           y_pred[new_tree[[list_nodes[i]]]$test_index] <- gp_process$mu_pred + new_tree[[list_nodes[[i]]]]$mu
           
@@ -1724,8 +1528,7 @@ my_predict_rBART <- function(rBart_model, x_test,type = c("all", "mean", "median
     
     utils::setTxtProgressBar(progress_bar, i)
     
-    # Testing the 100 MH run
-    # i=800
+
     
     # Selecting one tree from BART model
     current_tree <- rBart_model$trees[[i]]
@@ -1734,7 +1537,7 @@ my_predict_rBART <- function(rBart_model, x_test,type = c("all", "mean", "median
     y_pred_aux <- predict_gaussian_from_multiple_trees(
       multiple_trees = current_tree, x_train = rBart_model$X,
       x_new = x_test, partial_residuals = rBart_model$current_partial_residuals_list[[i]],
-      phi_vector = rBart_model$phi_store[i, ], nu_vector = rBart_model$nu_store[i,],
+      phi_vector = rBart_model$phi_store[i, ], nu_vector = rBart_model$nu_vector,
       tau = rBart_model$tau_store[[i]],pred_bart_only = pred_bart_only
     )
     

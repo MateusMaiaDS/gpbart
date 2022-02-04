@@ -8,11 +8,6 @@ gp_main <- function(x_train, y_train, x_star, tau, phi, nu, distance_matrix_trai
   distance_matrix_K_star <- distance_matrix(m1 = x_train,m2 = x_star)
   distance_matrix_K_star_star <- symm_distance_matrix(m1 = x_star) 
   
-  
-  # Getting the distance matrix from x_train and x_star (SPATIAL VALUES)
-  # distance_matrix_K_star <- distance_matrix(m1 = x_train[,c("lat","lon")],m2 = x_star[,c("lat","lon")])
-  # distance_matrix_K_star_star <- symm_distance_matrix(m1 = x_star[,c("lat","lon")])
-  
   # Calculating the K elements from the covariance structure
   K_y <- (tau^-1)*(kernel_function(distance_matrix = distance_matrix_train,
                           nu = nu,
@@ -52,30 +47,3 @@ kernel_function <- function(distance_matrix, nu, phi) {
   return(kernel_matrix)
 }
 
-
-# Testing the matrix
-# matrix_test <- matrix( c(1,4,1,3,1,3),
-#                        nrow=3)
-# symm_distance_matrix(matrix_test) -> aux_dist
-# aux_dist_default <- (as.matrix(dist(matrix_test)))^2
-# aux_dist_double <- distance_matrix(matrix_test,matrix_test)
-# aux_dist
-# aux_dist_default
-# aux_dist_double
-
-
-# Test over kernel_function
-# dist_x_test <- matrix(rnorm(5))
-# dist_matrix_test <- as.matrix(dist(dist_x_test))
-# omega <- kernel_function(distance_matrix = dist_matrix_test, nu = 1, phi = 0.0001)
-# 
-# # Testing the standard BART settings
-# mu <- rep(0.2,5)
-# tau <- 0.1
-# residuals <- rnorm(5)
-# diagonal_d <- diag(100000,5)
-# 
-# 
-# # What is approximately equals to mu
-# mean_r_star <- mu + crossprod(omega,solve((omega+diagonal_d),(residuals-mu))) # Return the \mu vec
-# var_r_star <- tau*omega - crossprod(omega,solve((omega+diagonal_d),omega)) # Return a diagonal matrix with \tau inverse values
