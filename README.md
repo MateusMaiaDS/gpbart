@@ -17,4 +17,4 @@ source("fast_gp_multiple_tau.R")
 
 ```
 
-To see a demonstration of how you could use the data just check the files `unit_test.R`, and `unit_test_gpbart` to check the models of BART and GP-BART respectively.
+To see a demonstration of how you could use the data just check the files `unit_test.R`, and `unit_test_gpbart.R` to check the models of BART and GP-BART respectively.
