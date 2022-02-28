@@ -10,12 +10,12 @@ gp_main <- function(x_train, y_train, x_star, tau, phi, nu, distance_matrix_trai
   
   # Calculating the K elements from the covariance structure
   K_y <- (tau^-1)*(kernel_function(distance_matrix = distance_matrix_train,
-                          nu = nu,
-                          phi = phi) + diag(x = 1,nrow = nrow(x_train)))
+                                   nu = nu,
+                                   phi = phi) + diag(x = 1,nrow = nrow(x_train)))
   K_star <- (tau^-1)*(kernel_function(distance_matrix = distance_matrix_K_star,
-                             nu = nu, phi = phi))
+                                      nu = nu, phi = phi))
   K_star_star <- (tau^-1)*(kernel_function(distance_matrix = distance_matrix_K_star_star,
-                                  nu = nu, phi = phi))
+                                           nu = nu, phi = phi))
   
   # Calculating \alpha
   L <- chol(K_y)

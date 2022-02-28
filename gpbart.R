@@ -10,9 +10,9 @@ library(Rcpp)
 # ==================================#
 
 tree_complete_conditional_gpbart <- function(tree, x, residuals, nu = 1, phi = 1, 
-                                      tau_mu,
-                                      number_trees= number_trees,
-                                      tau_multiplier) {
+                                             tau_mu,
+                                             number_trees= number_trees,
+                                             tau_multiplier) {
   
   
   # Selecting the terminal nodes
@@ -364,8 +364,8 @@ my_rBart_gp <- function(x, y,
                         tau = 1, # Tau from prior,
                         nu_vector = NULL, # This will be defining the nu the default value
                         phi_vector = rep(0.1 / (sqrt(number_trees)), number_trees), # This parameter is a "scale paramter" to the GP
-                        n_iter = 1250, # Number of iterations
-                        burn = n_iter/2, # Number of burn
+                        n_iter = 2000, # Number of iterations
+                        burn = 500, # Number of burn
                         thin = 1, # Number of thin
                         rotation = TRUE, # If rotated lon and lat will be used in tree building
                         theta = NULL, # If theta is NULL, then the rotation angle will be randomly selected
@@ -385,10 +385,24 @@ my_rBart_gp <- function(x, y,
                         K_bart = 2,
                         prob_tau = 0.9,
                         error_handling_residuals = FALSE,
-                        kappa = 0.5, bart_boolean = TRUE, bart_number_iter = (n_iter/2-1)
+                        kappa = 0.5, bart_boolean = TRUE, bart_number_iter = 250
                         
 ) {
   
+  # If there's only one covariate
+  if(dim(x)[2]==1){
+    rotation <- FALSE
+  }
+  
+  # Saving mean values from x
+  mean_x <- colMeans(x)
+  sd_x <- apply(x,2,sd)
+  
+  
+  # Scaling the x
+  if(x_scale){
+    x <- t(apply(x, 1, function(x) {(x - mean_x)/sd_x}))
+  }
   
   # Adjusting the kappa (avoiding the Infinity error)
   if(kappa == 1 ){
@@ -399,9 +413,9 @@ my_rBart_gp <- function(x, y,
     kappa <- kappa + 2*.Machine$double.eps
   }
   
-
+  
   # Getting the maximum and minimum values from a distance matrix
-  distance_matrix_x <- symm_distance_matrix(m1 = x)
+  distance_matrix_x <- symm_distance_matrix(m1 = x[,gp_variables, drop = FALSE])
   distance_range <- range(distance_matrix_x[upper.tri(distance_matrix_x)])
   distance_min <- sqrt(distance_range[1])
   distance_max <- sqrt(distance_range[2])
@@ -460,7 +474,7 @@ my_rBart_gp <- function(x, y,
                       y = y_scale,
                       prob = prob_tau,
                       shape = a_tau)
-
+    
   }
   
   # Getting the number of observations 
@@ -502,7 +516,7 @@ my_rBart_gp <- function(x, y,
     stop("Insert a valid \\phi vector for the number of trees")
   }
   
-
+  
   # Recommendation about the min_node_size
   if (node_min_size < 15) {
     warning("\n It is recommended that the min_node_size should be of at least 15 observations.")
@@ -520,7 +534,7 @@ my_rBart_gp <- function(x, y,
   # Storing the likelihoods
   log_lik_store <- rep(NA, store_size)
   log_lik_store_fixed_tree <- rep(NA,store_size)
-
+  
   
   # Getting the numbers
   loglike_fixed_tree_residuals <- numeric()
@@ -540,7 +554,7 @@ my_rBart_gp <- function(x, y,
     current_trees_proposal[[i]] <- stump(x = x, tau = tau, mu =  mu)
   }
   
-
+  
   names(current_trees) <- (sapply(1:number_trees, function(x) paste0("tree_", x))) # Naming each tree
   names(current_trees_proposal) <- (sapply(1:number_trees, function(x) paste0("tree_", x))) # Naming each tree
   
@@ -576,11 +590,11 @@ my_rBart_gp <- function(x, y,
       
       # Saving the current partial
       current_partial_residuals_list[[curr]] <- current_partial_residuals_matrix
-        
+      
       
       # Saving the predictions
       current_predictions_list[[curr]] <- predictions
-
+      
       phi_store[curr, ] <- phi_vector
       phi_proposal_store[curr, ] <- phi_vector_proposal
       verb_store_list[[curr]] <- verb_store
@@ -715,7 +729,7 @@ my_rBart_gp <- function(x, y,
           
         } # End of accept if statement
         
-
+        
         # To update the mu values
         current_trees[[j]] <- update_mu_bart(
           tree = current_trees[[j]],
@@ -907,7 +921,7 @@ my_rBart_gp <- function(x, y,
           error_handling_residuals = error_handling_residuals # Boolean to check if handle the residuals or not
         )
         
-
+        
         # To update phi
         if(phi_update){
           mh_update_phi<- update_phi_marginal(current_tree_iter = current_trees[[j]],
@@ -956,6 +970,7 @@ my_rBart_gp <- function(x, y,
       
     }
     
+    
     tau <- update_tau(x = x,
                       y = y_scale,
                       a_tau = a_tau,
@@ -966,7 +981,10 @@ my_rBart_gp <- function(x, y,
   } # End of Loop through the n_inter
   cat("\n")
   
-  
+  # Returning X to its original scale
+  if(x_scale){
+    x <- t(apply(x, 1, function (y) {y*sd_x + mean_x}))
+  }
   return(list(
     trees = tree_store,
     tau_store = tau_store,
@@ -981,6 +999,9 @@ my_rBart_gp <- function(x, y,
     nu_vector = nu_vector,
     y = y_scale,
     X = x,
+    x_scale = x_scale,
+    mean_x = mean_x,
+    sd_x = sd_x, 
     scale_boolean = scale_boolean,
     acc_ratio = acc_ratio,
     acc_ratio_phi = acc_ratio_phi,
@@ -1028,11 +1049,11 @@ update_phi_marginal <- function(x, current_tree_iter,residuals,
   
   
   likelihood_phi_proposal <- tree_complete_conditional_gpbart(tree = tree_from_phi_proposal,
-                                                       x = x,
-                                                       residuals = residuals,
-                                                       nu = nu, tau_mu = tau_mu,
-                                                       phi = phi_proposal,
-                                                       number_trees = number_trees,tau_multiplier = tau_multiplier)
+                                                              x = x,
+                                                              residuals = residuals,
+                                                              nu = nu, tau_mu = tau_mu,
+                                                              phi = phi_proposal,
+                                                              number_trees = number_trees,tau_multiplier = tau_multiplier)
   
   # Old phi likelhood
   l_old_phi <- likelihood_object$log_posterior
@@ -1097,11 +1118,11 @@ update_phi <- function(x, current_tree_iter,residuals,
   
   
   likelihood_phi_proposal <- tree_complete_conditional_gpbart(tree = tree_from_phi_proposal,
-                                                       x = x,
-                                                       residuals = residuals,
-                                                       nu = nu, tau_mu = tau_mu,
-                                                       phi = phi_proposal, 
-                                                       number_trees = number_trees,tau_multiplier = tau_multiplier)
+                                                              x = x,
+                                                              residuals = residuals,
+                                                              nu = nu, tau_mu = tau_mu,
+                                                              phi = phi_proposal, 
+                                                              number_trees = number_trees,tau_multiplier = tau_multiplier)
   
   # Selecting the terminal nodes
   terminal_nodes <- current_tree_iter[names(which(sapply(current_tree_iter, function(x) {
@@ -1212,6 +1233,23 @@ tree_depth_hist <- function(gpbart_model) {
       }) %>%
         unlist() %>%
         max()
+    }
+  }
+  return(tree_depth)
+}
+
+# Get the covariate splits
+tree_var_hist <- function(gpbart_model) {
+  tree_depth <- c()
+  
+  for (k in 1:length(gpbart_model$trees)) {
+    tree_iter <- gpbart_model$trees[[k]]
+    for (i in 1:gpbart_model$number_trees) {
+      tree <- tree_iter[[i]]
+      tree_depth <- c(tree_depth,lapply(tree, function(x) {
+        x$node_var
+      }) %>%
+        unlist() )
     }
   }
   return(tree_depth)
@@ -1493,7 +1531,18 @@ my_predict_rBART <- function(rBart_model, x_test,type = c("all", "mean", "median
                              pred_bart_only = FALSE) {
   
   # Loading x_train
-  x_train <- rBart_model$X
+  if(rBart_model$x_scale){
+    x_train <- t(apply(rBart_model$X, 1, function(z){ (z - rBart_model$mean_x)/rBart_model$sd_x}))
+    x_test <- t(apply(x_test, 1, function(z){ (z - rBart_model$mean_x)/rBart_model$sd_x}))
+    
+    # Retrieving the col.names
+    colnames(x_train) <- colnames(rBart_model$X)
+    colnames(x_test) <- colnames(rBart_model$X)
+    
+  } else {
+    x_train <- rBart_model$X
+  }
+  
   
   # Number of iters of bayesian simulation
   n_iter <- length(rBart_model$tau_store)
@@ -1528,14 +1577,14 @@ my_predict_rBART <- function(rBart_model, x_test,type = c("all", "mean", "median
     
     utils::setTxtProgressBar(progress_bar, i)
     
-
+    
     
     # Selecting one tree from BART model
     current_tree <- rBart_model$trees[[i]]
     
     # Getting the predictions from the test observations
     y_pred_aux <- predict_gaussian_from_multiple_trees(
-      multiple_trees = current_tree, x_train = rBart_model$X,
+      multiple_trees = current_tree, x_train = x_train,
       x_new = x_test, partial_residuals = rBart_model$current_partial_residuals_list[[i]],
       phi_vector = rBart_model$phi_store[i, ], nu_vector = rBart_model$nu_vector,
       tau = rBart_model$tau_store[[i]],pred_bart_only = pred_bart_only
@@ -1555,7 +1604,7 @@ my_predict_rBART <- function(rBart_model, x_test,type = c("all", "mean", "median
       y_hat_matrix[i, ] <- colSums(y_pred_aux$all_tree_pred)
       y_sd_pi_matrix[i, ] <- colSums(y_pred_final_pi)
     }
-
+    
     y_list_matrix[[i]] <- y_pred_final
     
     cov_hat_matrix_list[[i]] <- Reduce("+", cov_pred_final)
@@ -2309,19 +2358,6 @@ get_train_predictions <- function(gpbart_mod){
   # Returning the matrix of final predictions
   return(gpbart_sum_pred)
   
-}
-
-# This function scale the data to be between -0.5 and 0.5
-new_scale <- function(x) {
-  
-  # Scaling to -1 to 1 function
-  scaling <- function(z) {
-    (2 * z - (max(z) + min(z))) / (max(z) - min(z))
-  }
-  
-  # Applying on all covariates
-  x_scaled <- apply(x, 2, scaling)
-  return(x_scaled*0.5)
 }
 
 # Normalize BART function (Same way as theOdds code)

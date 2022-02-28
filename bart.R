@@ -287,7 +287,7 @@ update_predictions_bart <- function(tree, x) {
     x$terminal == 1
   })))]
   
-
+  
   # Getting the \mu_{j} vector
   mu_values <- unlist(
     lapply(terminal_nodes, function(x) {
@@ -609,7 +609,7 @@ bart <- function(x, # Covarariate matrix
                                     burn = burn,
                                     thin = thin),
               verb_store = verb_store)
-              )
+  )
   
   
 }
@@ -664,7 +664,7 @@ get_predictions_tree <- function(tree,
       }
       
     } else { # Checking the case where there is no rotated variable
-    
+      
       # To continous covariates
       if (is.numeric(x[, current_node_aux$node_var])) {
         
