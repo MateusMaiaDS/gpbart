@@ -17,7 +17,7 @@ gp_main <- function(x_train, y_train, x_star, tau, phi, nu, distance_matrix_trai
                              nu = nu, phi = phi)) / tau
   K_star_star <- (kernel_function(distance_matrix = distance_matrix_K_star_star,
                                   nu = nu, phi = phi)) / tau
-  
+
   # Calculating \alpha
   L <- chol(K_y)
   alpha <- backsolve(L, backsolve(L, y_train, transpose = TRUE, k=n_train), k=n_train)

@@ -442,10 +442,10 @@ get_predictions_tree <- function(tree,
       }
       
     } else { # Checking the case where there is no rotated variable
-    
+
       # To continuous covariates
       if(is.numeric(x[, current_node_aux$node_var])) {
-        
+
         # Updating observations from the left node
         if (current_node_aux$left == 1) {
           new_tree[[list_nodes[i]]]$test_index <- new_tree[[paste0("node_", current_node_aux$parent_node)]]$test_index[which(x[new_tree[[paste0("node_", current_node_aux$parent_node)]]$test_index, current_node_aux$node_var]  < current_node_aux$node_var_split)] # Updating the left node
