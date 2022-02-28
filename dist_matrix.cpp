@@ -15,8 +15,8 @@ NumericMatrix symm_distance_matrix(NumericMatrix m1) {
       for(int c_aux = 0; c_aux < ncol; c_aux++){
         total += pow( (m1(r,c_aux)-m1(c,c_aux)) ,2);
       }
-      out(r, c) = sqrt(total);
-      out(c, r) = sqrt(total);
+      out(r, c) = total;
+      out(c, r) = total;
     }
   }
   
@@ -42,7 +42,7 @@ NumericMatrix distance_matrix(NumericMatrix m1, NumericMatrix m2) {
       for (int c12 = 0; c12 < ncol; c12++) {
         total += pow(m1(r1, c12) - m2(r2, c12), 2);
       }
-      out(r1, r2) = sqrt(total);
+      out(r1, r2) = total;
     }
   }
   

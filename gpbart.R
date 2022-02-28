@@ -1451,7 +1451,7 @@ count_terminal_nodes <- function(tree) {
 
 # Predict rBART model
 
-my_predict_rBART <- function(rBart_model, x_test,type = c("all", "mean", "median"),
+my_predict_rBART <- function(rBart_model, x_test, type = c("all", "mean", "median"),
                              pred_bart_only = FALSE) {
   
   # Loading x_train

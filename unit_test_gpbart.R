@@ -1,7 +1,7 @@
 # This file is just to measure if the main code for GP-BART is running well, isn't made for 
 # evaluation purposes.
 
-# Setting a seeed
+# Setting a seed
 set.seed(42)
 
 # Importing data and library
