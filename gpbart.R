@@ -1,4 +1,4 @@
-# GP-Bart
+## GP-Bart
 
 # Loading test data
 library(magrittr)
