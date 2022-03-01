@@ -72,10 +72,6 @@ tree_complete_conditional_gpbart <- function(tree, x, residuals, nu = 1, phi = 1
 # Generate mu_j values
 update_mu <- function(tree,
                       x,
-                      nu,
-                      phi,
-                      tau,
-                      residuals,
                       likelihood_object,
                       seed = NULL) {
   
@@ -170,7 +166,7 @@ update_residuals <- function(tree, x, nu, phi, residuals, tau, error_handling_re
   # Calculating Omega matrix plus I INVERSE
   Omega_matrix <- lapply(terminal_nodes, FUN = function(nodes) {
     kernel_function(
-      distance_matrix =  nodes$distance_matrix,
+      squared_distance_matrix =  nodes$distance_matrix,
       nu = nu, phi = phi)
   })
   
@@ -843,9 +839,7 @@ my_rBart_gp <- function(x, y,
         current_trees[[j]] <- update_mu(
           tree = current_trees[[j]],
           x = x,
-          residuals = current_partial_residuals,
-          likelihood_object = likelihood_object,
-          phi = phi_vector[j], nu = nu_vector[j])
+          likelihood_object = likelihood_object)
         
         
         # EQUATION FROM SECTION 4
@@ -1780,7 +1774,7 @@ inverse_omega_plus_I <- function(tree,
   # Calculating Omega
   Omega_matrix <- mapply(distance_matrix, FUN = function(dist_m){
     ( kernel_function(
-      distance_matrix =  dist_m,
+      squared_distance_matrix =  dist_m,
       nu = nu, phi = phi)
     )
   },SIMPLIFY = FALSE)
@@ -2006,7 +2000,7 @@ loglike_residuals <- function(tree,
   
   Omega_matrix_plus_I <- lapply(terminal_nodes, function(nodes){
     kernel_function(
-      distance_matrix = nodes$distance_matrix,
+      squared_distance_matrix = nodes$distance_matrix,
       nu = nu, phi = phi) + diag(p,nrow = (dim(nodes$distance_matrix)[1]))
   })
   
@@ -2072,7 +2066,7 @@ update_g <- function(tree, x, nu, phi, residuals, seed = NULL,p) {
   # Calculating Omega matrix
   Omega_matrix_inverse <- mapply(terminal_nodes, FUN = function(nodes) {
     chol2inv(chol(
-      (kernel_function(distance_matrix = nodes$distance_matrix,
+      (kernel_function(squared_distance_matrix = nodes$distance_matrix,
                        nu = nu,
                        phi = phi)+diag(1e-4,nrow = nrow(nodes$distance_matrix))) # To be sure that is invertible
     ))
@@ -2162,30 +2156,4 @@ get_train_predictions <- function(gpbart_mod){
   
   # Returning the matrix of final predictions
   return(gpbart_sum_pred)
-
-# Normalize BART function (Same way as theOdds code)
-normalize_bart <- function(y){
-  
-  # Defining the a and b
-  a <- min(y)
-  b <- max(y)
-  
-  # This will normalize y between -0.5 and 0.5
-  y  <- (y-a)/(b-a)-0.5
-  
-  return(y) 
 }
-
-
-# Now a function to return everything back to the normal scale
-
-unnormalize_bart <- function(z, a, b) {
-  
-  # Just getting back to the regular BART
-  y <- (b-a)*(z+0.5) + a
-  
-  return(y)
-}
-
-
->>>>>>> 5f883321c2cf4f76173a41289b09d5582f0563f6

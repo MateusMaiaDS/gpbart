@@ -248,7 +248,6 @@ bart <- function(x, # Covarariate matrix
       
     }
     
-    
     # Verb Store
     verb_store <- data.frame(verb = rep(NA, number_trees),
                              accepted = rep(NA, number_trees),
@@ -363,7 +362,6 @@ bart <- function(x, # Covarariate matrix
       predictions[j,] <- update_predictions_bart(
         tree = current_trees[[j]], x = x
       )
-      
       current_partial_residuals_matrix[j,] <- current_partial_residuals
       
     } # End of iterations over trees
@@ -471,7 +469,7 @@ get_predictions_tree <- function(tree,
         
       } # End of check terminal
     } # End of the rotation check
-  }# End Terminal node iterations
+  } # End Terminal node iterations
   
     return(pred_new)
 }

@@ -13,7 +13,6 @@ tree_prior <- function(tree, alpha, beta) {
   # Selecting the depth of the terminal nodes
   depth_terminal <- vapply(tree[names_terminal_nodes], "[[", numeric(1), "depth_node")
   
-  
   # Selecting the depth of the internal nodes
   depth_internal <- vapply(tree[names_internal_nodes], "[[", numeric(1), "depth_node")
   
@@ -79,7 +78,7 @@ naive_tau <- function(x, y) {
   
   sigma <- sqrt(sum((lm_mod$residuals)^2)/(n - p))
   
-  tau <- sigma^(-2)
+  tau <- 1/sigma^2
     return(tau)
 }
 
@@ -96,9 +95,7 @@ naive_sigma <- function(x,y){
   lm_mod <- lm(formula = y ~ ., data =  data.frame(y,x))
   
   sigma <- sqrt(sum((lm_mod$residuals)^2)/(n - p))
-  
     return(sigma)
-  
 }
 
 # Return rate parameter from the tau prior

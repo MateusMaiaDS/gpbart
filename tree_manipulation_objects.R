@@ -27,8 +27,8 @@ A <- function(theta) {
   matrix(c(
     C, -S,
     S, C
-  ),
-  ncol = 2, nrow = 2, byrow = TRUE
+    ),
+    ncol = 2, nrow = 2, byrow = TRUE
   )
 }
 
@@ -157,7 +157,6 @@ grow_projection_tree <- function(tree, x, node_min_size, theta = NULL) {
 # ==================================#
 
 grow_tree <- function(tree, x, node_min_size, rotation = TRUE, theta = NULL){
-  
   
   # Controlling the "bad trees"
   bad_trees <- TRUE
@@ -354,7 +353,6 @@ prune_tree_verb <- function(tree, x) {
   
   # Transforming the parent in a terminal node
   tree[[paste0("node_", parent_of_the_pruned_node)]]$terminal <- 1
-  
     return(tree)
 }
 
@@ -479,7 +477,6 @@ change_tree_verb <- function(tree, x, node_min_size, rotation = FALSE, theta = N
     }
     
   } # Stopping the while
-  
     return(new_tree)
 }
 

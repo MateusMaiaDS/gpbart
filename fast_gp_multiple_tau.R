@@ -10,12 +10,12 @@ gp_main <- function(x_train, y_train, x_star, tau, phi, nu, distance_matrix_trai
   
   # Calculating the K elements from the covariance structure
   n_train <- nrow(x_train)
-  K_y <- (kernel_function(distance_matrix = distance_matrix_train,
+  K_y <- (kernel_function(squared_distance_matrix = distance_matrix_train,
                           nu = nu,
                           phi = phi) + diag(x = 1, nrow = n_train)) / tau
-  K_star <- (kernel_function(distance_matrix = distance_matrix_K_star,
+  K_star <- (kernel_function(squared_distance_matrix = distance_matrix_K_star,
                              nu = nu, phi = phi)) / tau
-  K_star_star <- (kernel_function(distance_matrix = distance_matrix_K_star_star,
+  K_star_star <- (kernel_function(squared_distance_matrix = distance_matrix_K_star_star,
                                   nu = nu, phi = phi)) / tau
 
   # Calculating \alpha
@@ -33,10 +33,10 @@ gp_main <- function(x_train, y_train, x_star, tau, phi, nu, distance_matrix_trai
 
 # Function to create the the function K that will be used
 # in a Gaussian process (Andrew's Version)
-kernel_function <- function(distance_matrix, nu, phi) {
+kernel_function <- function(squared_distance_matrix, nu, phi) {
   
   # Calculating the square matrix
-  kernel_matrix <- exp(-distance_matrix / (2 * phi^2)) / nu
+  kernel_matrix <- exp(-squared_distance_matrix / (2 * phi^2)) / nu
   
   # Case nu = 0
   if(nu == 0 || nu > 1e13){

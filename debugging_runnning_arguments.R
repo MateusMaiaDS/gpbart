@@ -21,8 +21,6 @@ mcmc_parameter = list(n_iter = 2000, # Parameters from MCMC
 init = list(tau = 1, # Initial values
             mu = 0)
 
-
-
 # list(x = x, # Covariate matrix
 #     y = y_scale, # Target variable
 #     tree_store = tree_store, # Tree store
