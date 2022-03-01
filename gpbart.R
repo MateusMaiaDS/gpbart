@@ -1,4 +1,4 @@
-# GP-Bart
+## GP-Bart
 
 # Loading test data
 library(magrittr)
@@ -1417,8 +1417,8 @@ predict_gaussian_from_multiple_trees <- function(multiple_trees, # A list of tre
         y_pred_pi[new_tree[[list_nodes[i]]]$test_index] <- (1/tau)
         
         if(!pred_bart_only){
-          # Variance is a matrix n_testXn_test
-          variance[new_tree[[list_nodes[i]]]$test_index, new_tree[[list_nodes[i]]]$test_index] <- gp_process$cov
+          # Variance is a matrix n_testXn_test (This is not necessary)
+          # variance[new_tree[[list_nodes[i]]]$test_index, new_tree[[list_nodes[i]]]$test_index] <- gp_process$cov
         }
       }
     }
