@@ -1,8 +1,11 @@
 library(Rcpp)
 sourceCpp(file = "dist_matrix.cpp")
 
+### NOTE: this doesn't work and gp_main_multi is never used by other functions
+# see 'fast_gp_single_tau.R' instead!
+
 # GP-function main
-gp_main <- function(x_train, y_train, x_star, tau, phi, nu, distance_matrix_train) {
+gp_main_multi <- function(x_train, y_train, x_star, tau, phi, nu, distance_matrix_train, get_cov_star = FALSE) {
   
   # Getting the distance matrix from x_train and x_star
   distance_matrix_K_star <- distance_matrix(m1 = x_train,m2 = x_star)
@@ -13,10 +16,8 @@ gp_main <- function(x_train, y_train, x_star, tau, phi, nu, distance_matrix_trai
   K_y <- (kernel_function(squared_distance_matrix = distance_matrix_train,
                           nu = nu,
                           phi = phi) + diag(x = 1, nrow = n_train)) / tau
-  K_star <- (kernel_function(squared_distance_matrix = distance_matrix_K_star,
-                             nu = nu, phi = phi)) / tau
-  K_star_star <- (kernel_function(squared_distance_matrix = distance_matrix_K_star_star,
-                                  nu = nu, phi = phi)) / tau
+  K_star <- kernel_function(squared_distance_matrix = distance_matrix_K_star,
+                             nu = nu, phi = phi) / tau
 
   # Calculating \alpha
   L <- chol(K_y)
@@ -24,25 +25,32 @@ gp_main <- function(x_train, y_train, x_star, tau, phi, nu, distance_matrix_trai
   mu_star <- crossprod(K_star, alpha)
   
   # Here the abs is because the smallest values that are coming from here are due to numerical approximations.
-  v <- backsolve(L, K_star, transpose = TRUE, k=n_train)
-  cov_star <- K_star_star - crossprod(v)
+  if(isTRUE(get_cov_star)) {
+    K_star_star <- kernel_function(squared_distance_matrix = distance_matrix_K_star_star,
+                                  nu = nu, phi = phi) / tau
+    v <- backsolve(L, K_star, transpose = TRUE, k=n_train)
+    cov_star <- K_star_star - crossprod(v)
+    results <- list(mu_pred = mu_star, cov_star = cov_star)
+  } else {
+    results <- list(mu_pred = mu_star)
+  }
   
   # ===============#
-    return(list(mu_pred = mu_star, cov = cov_star))
+    return(results)
 }
 
-# Function to create the the function K that will be used
-# in a Gaussian process (Andrew's Version)
-kernel_function <- function(squared_distance_matrix, nu, phi) {
-  
-  # Calculating the square matrix
-  kernel_matrix <- exp(-squared_distance_matrix / (2 * phi^2)) / nu
-  
-  # Case nu = 0
-  if(nu == 0 || nu > 1e13){
-    kernel_matrix <- matrix(0, nrow = dim(distance_matrix)[1],
-                               ncol = dim(distance_matrix)[2])
-  }
-  # Getting the kernel matrix
-    return(kernel_matrix)
-}
+# # Function to create the the function K that will be used
+# # in a Gaussian process (Andrew's Version)
+# kernel_function <- function(squared_distance_matrix, nu, phi) {
+#   
+#   # Calculating the square matrix
+#   kernel_matrix <- exp(-squared_distance_matrix / (2 * phi^2)) / nu
+#   
+#   # Case nu = 0
+#   if(nu == 0 || nu > 1e13){
+#     kernel_matrix <- matrix(0, nrow = dim(squared_distance_matrix)[1],
+#                                ncol = dim(squared_distance_matrix)[2])
+#   }
+#   # Getting the kernel matrix
+#     return(kernel_matrix)
+# }

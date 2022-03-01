@@ -13,8 +13,8 @@ source("gpbart.R")
 source("bart.R")
 source("tree_manipulation_objects.R")
 source("common_help_functions.R")
+source("fast_gp_single_tau.R")
 sourceCpp("dist_matrix.cpp")
-source("fast_gp_multiple_tau.R")
 
 # Getting a simple train and test dataset
 train_data <- mlbench.friedman1(n = 50, sd = 1)

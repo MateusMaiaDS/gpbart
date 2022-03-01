@@ -34,7 +34,6 @@ tree_complete_conditional_gpbart <- function(tree, x, residuals, nu = 1, phi = 1
     residuals[x$observations_index]
   })
   
-  
   # Calculating value S
   S <- unlist(mapply( terminal_nodes, FUN=function(z) {
     (sum(z$Omega_plus_I_inv) + c(tau_mu ))
@@ -72,6 +71,7 @@ tree_complete_conditional_gpbart <- function(tree, x, residuals, nu = 1, phi = 1
 # Generate mu_j values
 update_mu <- function(tree,
                       x,
+                      residuals,
                       likelihood_object,
                       seed = NULL) {
   
@@ -92,8 +92,6 @@ update_mu <- function(tree,
   nodes_size <- sapply(terminal_nodes, function(x) {
     length(x$observations_index)
   })
-  
-  
   
   # Residuals terminal nodes
   residuals_terminal_nodes <- lapply(terminal_nodes, function(x) {
@@ -839,6 +837,7 @@ my_rBart_gp <- function(x, y,
         current_trees[[j]] <- update_mu(
           tree = current_trees[[j]],
           x = x,
+          residuals = current_partial_residuals,
           likelihood_object = likelihood_object)
         
         
@@ -1285,10 +1284,9 @@ predict_gaussian_from_multiple_trees <- function(multiple_trees, # A list of tre
                                                  x_new, # The x that will be predicted
                                                  partial_residuals, # The partial_residual values
                                                  tau,
-                                                 pred_bart_only # Boolean argument to predict a BART object
-                                                 
-                                                 
-) {
+                                                 pred_bart_only, # Boolean argument to predict a BART object
+                                                 get_cov_star = FALSE # Boolean indicating whether to also return cov_star (computationally expensive)
+                                                 ) {
   # Defining objects
   y_pred_final <- matrix(0, nrow = length(multiple_trees), ncol = nrow(x_new))
   
@@ -1298,8 +1296,7 @@ predict_gaussian_from_multiple_trees <- function(multiple_trees, # A list of tre
   
   # Covariance matrix
   cov_pred_final <- list()
-  variance <- matrix(0, nrow = nrow(x_new), ncol = nrow(x_new))
-  
+  if(isTRUE(get_cov_star)) { variance <- matrix(0, nrow = nrow(x_new), ncol = nrow(x_new)) }
   
   # Iterating over all trees
   for (m in 1:length(multiple_trees)) {
@@ -1313,7 +1310,7 @@ predict_gaussian_from_multiple_trees <- function(multiple_trees, # A list of tre
     y_pred <- numeric(nrow(x_new))
     y_pred_pi <- numeric(nrow(x_new))
     
-    variance <- matrix(0, nrow = nrow(x_new), ncol = nrow(x_new))
+    if(isTRUE(get_cov_star)) { variance <- matrix(0, nrow = nrow(x_new), ncol = nrow(x_new)) }
     
     # Setting the root node with the new observations
     new_tree[["node_0"]]$test_index <- 1:nrow(x_new)
@@ -1396,11 +1393,11 @@ predict_gaussian_from_multiple_trees <- function(multiple_trees, # A list of tre
           
           # Getting the GP from a terminal node
           gp_process <- gp_main(
-            x_train = x_current_node,distance_matrix_train = distance_matrix_current_node,
+            x_train = x_current_node, distance_matrix_train = distance_matrix_current_node,
             y_train = (matrix((partial_residuals[m,new_tree[[list_nodes[[i]]]]$observations_index]) - new_tree[[list_nodes[[i]]]]$mu,
                               nrow = nrow(x_current_node)
             )), x_star = x_star, tau = tau,
-            nu = nu, phi = phi
+            nu = nu, phi = phi, get_cov_star
           ) 
           
           # Creating the mu vector
@@ -1416,9 +1413,9 @@ predict_gaussian_from_multiple_trees <- function(multiple_trees, # A list of tre
         # Creating the sd of the mu vector
         y_pred_pi[new_tree[[list_nodes[i]]]$test_index] <- (1/tau)
         
-        if(!pred_bart_only){
-          # Variance is a matrix n_testXn_test (This is not necessary)
-          # variance[new_tree[[list_nodes[i]]]$test_index, new_tree[[list_nodes[i]]]$test_index] <- gp_process$cov
+        if(!pred_bart_only && get_cov_star) {
+          # Variance is a matrix n_testXn_test
+          variance[new_tree[[list_nodes[i]]]$test_index, new_tree[[list_nodes[i]]]$test_index] <- gp_process$cov_star
         }
       }
     }
@@ -1427,12 +1424,14 @@ predict_gaussian_from_multiple_trees <- function(multiple_trees, # A list of tre
     
     y_pred_pi_final[m,] <- y_pred_pi
     y_pred_final[m, ] <- y_pred
-    cov_pred_final[[m]] <- variance
+    if(isTRUE(get_cov_star)) { cov_pred_final[[m]] <- variance }
   }
   # Return the new tree
   return(list(y_pred = colSums(y_pred_final),
               y_pred_pi_sd = y_pred_pi_final, new_tree = new_tree,
-              all_tree_pred = y_pred_final, variance_matrix = cov_pred_final))
+              all_tree_pred = y_pred_final, 
+              variance_matrix = if(isTRUE(get_cov_star)) cov_pred_final # will return NULL when get_cov_star is FALSE
+              ))
   # return(y_pred)
 }
 
