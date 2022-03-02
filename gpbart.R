@@ -33,23 +33,25 @@ tree_complete_conditional_gpbart <- function(tree, x, residuals, nu = 1, phi = 1
   })
   
   # Calculating value S
-  S <- unlist(mapply(terminal_nodes, FUN=function(z) {
-    sum(z$Omega_plus_I_inv)
+  S <- unlist(mapply(terminal_nodes, FUN=function(z, x=z$Omega_plus_I_inv) {
+    if(z$is_Omega_diag) sum(x) else sum(diag(x))
   }, SIMPLIFY = TRUE)) + tau_mu
   
   # Log Omega
-  log_det_Omega_plus_I_tau <- vapply(terminal_nodes, function(z) {
-    determinant(z$Omega_plus_I_tau, logarithm = TRUE)$modulus
+  log_det_Omega_plus_I_tau <- vapply(terminal_nodes, function(z, x=z$Omega_plus_I_tau) {
+    if(z$is_Omega_diag) log(prod(diag(x))) else determinant(x, logarithm = TRUE)$modulus
   }, numeric(1))
   
   # Defining RT_Omega_I_R
-    crossprod(resid,crossprod(nodes$Omega_plus_I_inv,resid))
-  RTR <- unlist(mapply(terminal_nodes,residuals_terminal_nodes, FUN = function(nodes, resid) {
+  RTR <- unlist(mapply(terminal_nodes, residuals_terminal_nodes, 
+                       FUN = function(nodes, resid, x=nodes$Omega_plus_I_inv) {
+    if(nodes$is_Omega_diag) sum(resid^2 * diag(x)) else crossprod(resid, crossprod(x, resid))
   }, SIMPLIFY = FALSE))
   
   # The term R^{T} solve(Omega + I ) 1 
-  R_Omega_I_one <- unlist(mapply(terminal_nodes, residuals_terminal_nodes, FUN = function(nodes, residuals) {
-    rowSums(crossprod(residuals, nodes$Omega_plus_I_inv))
+  R_Omega_I_one <- unlist(mapply(terminal_nodes, residuals_terminal_nodes, 
+                                 FUN = function(nodes, residuals, x=nodes$Omega_plus_I_inv) {
+    if(nodes$is_Omega_diag) sum(residuals * diag(x)) else rowSums(crossprod(residuals, x))
   }, SIMPLIFY = FALSE))
   
   log_posterior <- -0.5 * sum(log_det_Omega_plus_I_tau) - 0.5 * sum(log(S) - log(tau_mu)) - 0.5 * sum(RTR) + 0.5 * sum(R_Omega_I_one^2 / S)
@@ -129,6 +131,9 @@ update_residuals <- function(tree, x, nu, phi, residuals, tau, seed = NULL) {
   # Calculating Omega matrix
   Omega_matrix <- lapply(terminal_nodes, "[[", "Omega_matrix")
   
+  # Checking if diagonal
+  is_Omega_diag <- lapply(terminal_nodes, "[[", "is_Omega_diag")
+  
   # Calculating Omega matrix plus I INVERSE
   Omega_matrix_inverse_plus_I  <- lapply(terminal_nodes, "[[", "Omega_plus_I_inv")
   
@@ -137,13 +142,14 @@ update_residuals <- function(tree, x, nu, phi, residuals, tau, seed = NULL) {
                            Omega_matrix_inverse_plus_I,
                            residuals_terminal_nodes,
                            mu_values,
-                           FUN = function(omega, omega_i_inv, residuals, mu) {
+                           is_Omega_diag,
+                           FUN = function(omega, omega_i_inv, residuals, mu, omega_is_diag) {
                              # Getting the values
-                             rep(mu,dim(omega)[1]) + crossprod(omega,
-                                                               crossprod(omega_i_inv,
-                                                                         (residuals - rep(mu,dim(omega)[1]))
-                                                               )
-                             )
+                             if(omega_is_diag) {
+                               mu + diag(omega) * diag(omega_i_inv) * (residuals - mu)
+                             } else {
+                               mu + crossprod(omega, crossprod(omega_i_inv, residuals - mu))
+                             }
                            }, SIMPLIFY = FALSE)
   
   # Calculating g_mean posterior
@@ -151,9 +157,14 @@ update_residuals <- function(tree, x, nu, phi, residuals, tau, seed = NULL) {
                                Omega_matrix_inverse_plus_I,
                                residuals_terminal_nodes,
                                mu_values,
-                               FUN = function(omega, omega_i_inv, residuals, mu) {
+                               is_Omega_diag,
+                               FUN = function(omega, omega_i_inv, residuals, mu, omega_is_diag) {
                                  # Getting the Omega value
-                                 (omega - crossprod(omega,crossprod(omega_i_inv,omega)))  #+ diag(1/tau,nrow = dim(omega)[1])
+                                 if(omega_is_diag) {
+                                   diag(omega) - diag(omega)^2 * diag(omega_i_inv)
+                                 } else {
+                                   omega - crossprod(omega, crossprod(omega_i_inv, omega))
+                                 }
                                }, SIMPLIFY = FALSE)
   
   # Calculating g_mean posterior
@@ -1561,6 +1572,9 @@ inverse_omega_plus_I <- function(tree,
     nu = nu, phi = phi)
   }, SIMPLIFY = FALSE)
   
+  # Checking if diagonal
+  is_Omega_diag <- lapply(Omega_matrix, is_diag_matrix)
+  
   # Calculating Omega_plus_I*tau^(-1)
   Omega_matrix_plus_I <- mapply(Omega_matrix, FUN = function(omega) {
     omega + diag(1/tau, nrow = nrow(omega))
@@ -1577,6 +1591,7 @@ inverse_omega_plus_I <- function(tree,
     tree[[names_terminal_nodes[i]]]$Omega_plus_I_inv <- Omega_matrix_plus_I_INV[[names_terminal_nodes[i]]]
     tree[[names_terminal_nodes[i]]]$distance_matrix <- distance_matrices[[names_terminal_nodes[i]]]
     tree[[names_terminal_nodes[i]]]$Omega_matrix <- Omega_matrix[[names_terminal_nodes[i]]]
+    tree[[names_terminal_nodes[i]]]$is_Omega_diag <- is_Omega_diag[[names_terminal_nodes[i]]]
   }
     return(tree)
 }

@@ -153,6 +153,9 @@ rMVN_var <- function(mean, Sigma) {
     mean + sqrt(Sigma) * rnorm(length(mean))
   }
 }
+
+is_diag_matrix <- function(m) all(m[!diag(nrow(m))] == 0)
+
 PD_chol  <- function(x, ...) tryCatch(chol(x, ...), error=function(e) {
     d    <- nrow(x)
     eigs <- eigen(x, symmetric = TRUE)
