@@ -1159,7 +1159,7 @@ predict_gaussian_from_multiple_trees <- function(multiple_trees, # A list of tre
     if(isTRUE(get_cov_star)) { variance <- matrix(0, nrow = nrow(x_new), ncol = nrow(x_new)) }
     
     # Setting the root node with the new observations
-    new_tree[["node_0"]]$test_index <- 1:nrow(x_new)
+    new_tree[["node_0"]]$test_index <- seq_len(nrow(x_new))
     
     # Creating the list of nodes
     list_nodes <- names(new_tree)[-1]
@@ -1606,7 +1606,8 @@ remove_omega_plus_I_inv <- function(current_tree_iter) {
     current_tree_iter[[i]]$Omega_plus_I_inv <- 
     current_tree_iter[[i]]$distance_matrix <- 
     current_tree_iter[[i]]$Omega_plus_I_tau <- 
-    current_tree_iter[[i]]$Omega_matrix <- NULL
+    current_tree_iter[[i]]$Omega_matrix <- 
+    current_tree_iter[[i]]$is_Omega_diag <- NULL
   }
     return(current_tree_iter)
 }
