@@ -145,3 +145,11 @@ unnormalize_bart <- function(z, a, b) {
 rmse <- function(obs, pred) {
   return(sqrt(mean((obs - pred)^2)))
 }
+PD_chol  <- function(x, ...) tryCatch(chol(x, ...), error=function(e) {
+    d    <- nrow(x)
+    eigs <- eigen(x, symmetric = TRUE)
+    eval <- eigs$values
+    evec <- eigs$vectors
+      return(chol(x + evec %*% tcrossprod(diag(pmax.int(0L, 2 * max(abs(eval)) * d * .Machine$double.eps - eval), d), evec), ...))
+  }
+)

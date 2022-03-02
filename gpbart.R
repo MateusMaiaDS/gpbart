@@ -554,8 +554,8 @@ my_rBart_gp <- function(x, y,
             beta = beta
           )
         
-        # Probability of accept the new proposed tree
-        acceptance <- exp(l_new - l_old)
+        # (log) Probability of accept the new proposed tree
+        acceptance <- l_new - l_old
         
         # If Storage or not based on thin and burn parameters
         if((i > burn) && ((i %% thin) == 0)) {
@@ -564,7 +564,7 @@ my_rBart_gp <- function(x, y,
         
         # In case of acceptance
         
-        if (runif(1) < acceptance) {
+        if(acceptance > 0 || acceptance > -rexp(1)) {
           
           # Counting acc ratio
           acc_ratio <- acc_ratio + 1
@@ -714,15 +714,15 @@ my_rBart_gp <- function(x, y,
             beta = beta
           )
         
-        # Probability of accept the new proposed tree
-        acceptance <- exp(l_new - l_old)
+        # (log) Probability of accept the new proposed tree
+        acceptance <- l_new - l_old
         
         # If Storage or not based on thin and burn parameters
         if((i > burn) && ((i %% thin) == 0)) {
           full_cond_store[curr, j] <- l_old
         }
         
-        if (runif(1) < acceptance) { #
+        if(acceptance > 0 || acceptance > -rexp(1)) { #
           acc_ratio <- acc_ratio + 1
           
           # Checking whether the trees are identical
@@ -900,19 +900,12 @@ update_phi_marginal <- function(x, current_tree_iter,residuals,
   # Proposal likelihood
   l_proposal_phi <- likelihood_phi_proposal$log_posterior
   
-  # Rejecting the new value
-  if(l_proposal_phi == -Inf){
-    # Case of not accepting
-    phi_boolean <- FALSE
-    return( list(phi_boolean = phi_boolean)) # Returning the old value for phi
-  }
-  
-  # Probability of accept the new proposed tree
-  acceptance_phi <- exp(l_proposal_phi- l_old_phi)
+  # (log) Probability of accept the new proposed tree
+  acceptance_phi <- l_proposal_phi - l_old_phi
   
   # If storage for phi
   
-  if (runif(1) < acceptance_phi) { #
+  if(acceptance_phi > 0 || acceptance_phi > -rexp(1)) { #
     
     # Nu boolean to see if was accepted or not
     phi_boolean <- TRUE
@@ -1014,19 +1007,12 @@ update_phi <- function(x, current_tree_iter,residuals,
   # Proposal likelihood
   l_proposal_phi <- sum(log_likelihood_new)
   
-  # Rejecting the new value
-  if(l_proposal_phi == -Inf){
-    # Case of not accepting
-    phi_boolean <- FALSE
-    return( list(phi_boolean = phi_boolean)) # Returning the old value for phi
-  }
-  
-  # Probability of accept the new proposed tree
-  acceptance_phi <- exp(l_proposal_phi- l_old_phi)
+  # (log) Probability of accept the new proposed tree
+  acceptance_phi <- l_proposal_phi- l_old_phi
   
   # If storage for phi
   
-  if (runif(1) < acceptance_phi) { #
+  if(acceptance > 0 || acceptance > -rexp(1)) { #
     
     # Nu boolean to see if was accepted or not
     phi_boolean <- TRUE
@@ -1814,10 +1800,10 @@ update_g <- function(tree, x, nu, phi, residuals, seed = NULL, p) {
   
   # Calculating Omega matrix
   Omega_matrix_inverse <- mapply(terminal_nodes, FUN = function(nodes) {
-    chol2inv(chol(
-      (kernel_function(squared_distance_matrix = nodes$distance_matrix,
-                       nu = nu,
-                       phi = phi) + diag(1e-4, nrow = nrow(nodes$distance_matrix))) # To be sure that is invertible
+    chol2inv(PD_chol(
+      kernel_function(squared_distance_matrix = nodes$distance_matrix,
+                      nu = nu,
+                      phi = phi)
     ))
   }, SIMPLIFY = FALSE)
   
