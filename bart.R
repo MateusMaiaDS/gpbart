@@ -292,7 +292,9 @@ bart <- function(x, # Covarariate matrix
         tree = current_trees[[j]],
         x = x,
         node_min_size = node_min_size,
-        verb = verb
+        verb = verb,
+        rotation = rotation_boolean,
+        theta = theta
       )
       
       # Calculating the likelihood of the new tree
@@ -310,7 +312,7 @@ bart <- function(x, # Covarariate matrix
       )
       
       # Extracting only the likelihood
-      l_new <- likelihood_new+
+      l_new <- likelihood_new +
         tree_prior(
           tree = new_trees[[j]], # Calculate the tree prior
           alpha = alpha,
