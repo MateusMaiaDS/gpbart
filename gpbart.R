@@ -57,7 +57,7 @@ tree_complete_conditional_gpbart <- function(tree, x, residuals, nu = 1, phi = 1
     return(list(log_posterior = log_posterior,
                 S = S,
                 RTR = RTR,
-                R_Omega_I_one =  R_Omega_I_one))
+                R_Omega_I_one = R_Omega_I_one))
 }
 
 # Generate mu_j values
@@ -106,7 +106,7 @@ update_mu <- function(tree,
     return(tree)
 }
 
-update_residuals <- function(tree, x, nu, phi, residuals, tau, error_handling_residuals, seed = NULL) {
+update_residuals <- function(tree, x, nu, phi, residuals, tau, seed = NULL) {
   # set.seed(seed)
   
   # New g (new vector prediction for g)
@@ -126,12 +126,8 @@ update_residuals <- function(tree, x, nu, phi, residuals, tau, error_handling_re
   # Getting the \mu_{j} vector
   mu_values <- vapply(terminal_nodes, "[[", numeric(1), "mu")
   
-  Omega_matrix <- lapply(terminal_nodes, FUN = function(nodes) {
-    kernel_function(
-      squared_distance_matrix =  nodes$distance_matrix,
-      nu = nu, phi = phi)
-  })
   # Calculating Omega matrix
+  Omega_matrix <- lapply(terminal_nodes, "[[", "Omega_matrix")
   
   # Calculating Omega matrix plus I INVERSE
   Omega_matrix_inverse_plus_I  <- lapply(terminal_nodes, "[[", "Omega_plus_I_inv")
@@ -150,7 +146,6 @@ update_residuals <- function(tree, x, nu, phi, residuals, tau, error_handling_re
                              )
                            }, SIMPLIFY = FALSE)
   
-  
   # Calculating g_mean posterior
   residuals_variance <- mapply(Omega_matrix,
                                Omega_matrix_inverse_plus_I,
@@ -161,29 +156,8 @@ update_residuals <- function(tree, x, nu, phi, residuals, tau, error_handling_re
                                  (omega - crossprod(omega,crossprod(omega_i_inv,omega)))  #+ diag(1/tau,nrow = dim(omega)[1])
                                }, SIMPLIFY = FALSE)
   
-  
-  # # Calculating g_mean posterior
-  residuals_sample <- mapply(residuals_mean,residuals_variance,
-                             FUN =  function(mean,var){
-                               
-                               if(error_handling_residuals){
-                                 
-                                 # Using tryCatch to handle the error
-                                 r_sample <- try(rMVN2(b = mean,Q = var),silent = TRUE)
-                                 
-                                 # Veryfing if it's an error
-                                 if(class(r_sample)=="try-error"){
-                                   error_counter_rmvn <<- error_counter_rmvn + 1 # Global variable so ugly!!!
-                                   return(MASS::mvrnorm(n = 1,mu = mean,Sigma = var))
-                                 }else{
-                                   return(r_sample)
-                                 }
-                               } else{
-                                 # Run without error handling
-                                 return(MASS::mvrnorm(n = 1,mu = mean,Sigma = var))
-                                 # rMVN2(b = mean,Q = (var+diag(1e-8, nrow = size(var)[1])))
-                               }
-                             }, SIMPLIFY = FALSE)
+  # Calculating g_mean posterior
+  residuals_sample <- mapply(FUN=rMVN_var, residuals_mean, residuals_variance, SIMPLIFY = FALSE)
   
   # Adding the mu values calculated
   for(i in seq_along(terminal_nodes)) {
@@ -266,7 +240,6 @@ my_rBart_gp <- function(x, y,
                         p = 1, # Shrink main parameter from GP-BART
                         K_bart = 2,
                         prob_tau = 0.9,
-                        error_handling_residuals = FALSE,
                         kappa = 0.5, bart_boolean = TRUE, bart_number_iter = 250) {
   
   # If there's only one covariate
@@ -765,8 +738,7 @@ my_rBart_gp <- function(x, y,
         predictions[j, ] <- update_residuals(
           tree = current_trees[[j]], x = x,
           residuals = current_partial_residuals,
-          phi = phi_vector[j], nu = nu_vector[j],tau = tau,
-          error_handling_residuals = error_handling_residuals # Boolean to check if handle the residuals or not
+          phi = phi_vector[j], nu = nu_vector[j], tau = tau
         )
         
         # To update phi
@@ -1624,15 +1596,6 @@ remove_omega_plus_I_inv <- function(current_tree_iter) {
     return(current_tree_iter)
 }
 
-
-# Read one of the trees as example
-rMVN2 <- function(b, Q) {
-  Q_inv <- chol2inv(chol(Q))
-  p   <- ncol(Q)
-  U   <- chol(Q_inv)
-  z   <- rnorm(p)
-  backsolve(U,matrix(z),transpose = FALSE, k=p)+b
-}
 # Creating one tree with 2 terminal nodes only
 tree_two_terminal <- function(x,
                               node_split, # Setting the value of the node split
@@ -1824,7 +1787,7 @@ update_g <- function(tree, x, nu, phi, residuals, seed = NULL, p) {
     tau * (omg + diag(p, nrow=nrow(omg)))
   }, SIMPLIFY = FALSE)
   
-  g_sample <- mapply(rMVN_var, g_mean, g_sd, SIMPLIFY = FALSE)
+  g_sample <- mapply(FUN=rMVN_var, g_mean, g_sd, SIMPLIFY = FALSE)
   
   # Adding the mu values calculated
   for(i in seq_along(terminal_nodes)) {

@@ -145,6 +145,14 @@ unnormalize_bart <- function(z, a, b) {
 rmse <- function(obs, pred) {
   return(sqrt(mean((obs - pred)^2)))
 }
+
+rMVN_var <- function(mean, Sigma) {
+  if(is.matrix(Sigma)) {
+    drop(mean + crossprod(chol(Sigma), rnorm(length(mean))))
+  } else {
+    mean + sqrt(Sigma) * rnorm(length(mean))
+  }
+}
 PD_chol  <- function(x, ...) tryCatch(chol(x, ...), error=function(e) {
     d    <- nrow(x)
     eigs <- eigen(x, symmetric = TRUE)
