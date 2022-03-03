@@ -148,7 +148,7 @@ rmse <- function(obs, pred) {
 
 rMVN_var <- function(mean, Sigma) {
   if(is.matrix(Sigma)) {
-    drop(mean + crossprod(chol(Sigma), rnorm(length(mean))))
+    drop(mean + crossprod(PD_chol(Sigma), rnorm(length(mean))))
   } else {
     mean + sqrt(Sigma) * rnorm(length(mean))
   }
