@@ -17,7 +17,7 @@ colnames(boston_base)[c(1,2,3)]<- c("lat","lon","y")
 
 # Setting the cross-validation parameterisation
 N <-  1000
-n_iter <- 2000
+n_iter <- 2500
 K <- 20
 beta <- 2
 rotation_boolean <- TRUE
@@ -30,7 +30,7 @@ cross_validation_object <- spatial_k_fold(data = database,
 
 
 # Separating the clusters
-number_cores <- 1 # Take care with this line to not break your computer
+number_cores <- 5 # Take care with this line to not break your computer
 cl <- makeCluster(number_cores)
 doParallel::registerDoParallel(cl)
 

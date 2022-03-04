@@ -16,7 +16,7 @@ database<-swmud
 
 # Setting the cross-validation parameterisation
 N <-  1000
-n_iter <- 2000
+n_iter <- 2500
 K <- 20
 beta <- 2
 rotation_boolean <- TRUE
