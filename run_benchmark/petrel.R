@@ -9,15 +9,10 @@ library(spData)
 # Sourcing the kfold_file
 source("run_benchmark/spatial_cross_validation.R") # Spatial K-Fold value
 
-#== Auckland ==# (#SP DATA)
-auckland %>% head
+# petrel
+load("run_benchmark/data/petrel.Rdata")
+database<-petrel
 
-#Predict the Deaths
-auckland <- auckland %>% distinct(Easting,Northing,.keep_all = TRUE)
-auckland_base<-auckland[,1:3]
-colnames(auckland_base)<-c("lon","lat","y")
-
-database <- auckland_base
 
 # Setting the cross-validation parameterisation
 N <-  1000
@@ -60,6 +55,6 @@ simple_K_example <- foreach(i = 1:10, .packages = c("BART","SoftBart","tgp")) %d
 stopCluster(cl)
 
 saveRDS(object = simple_K_example,
-        file = paste0("run_benchmark/CORRECTED_new_rotation_FINAL_scale_gp_spatial_parallel_march_auckland_gpbart_mod_result_",N,"_K_",K,"_beta_",round(beta,0),"_phi_sample_",
+        file = paste0("run_benchmark/CORRECTED_new_rotation_FINAL_scale_gp_spatial_parallel_march_petrel_gpbart_mod_result_",N,"_K_",K,"_beta_",round(beta,0),"_phi_sample_",
                       phi_sample,
                       "rotation_boolean_",rotation_boolean,"_n_rep_",n_iter,".Rds"))
