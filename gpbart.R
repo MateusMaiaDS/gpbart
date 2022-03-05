@@ -991,10 +991,9 @@ update_phi <- function(x, current_tree_iter,residuals,
   l_proposal_phi <- sum(log_likelihood_new)
   
   # (log) Probability of accept the new proposed tree
-  acceptance_phi <- l_proposal_phi- l_old_phi
+  acceptance_phi <- l_proposal_phi - l_old_phi
   
   # If storage for phi
-  
   if(acceptance > 0 || acceptance > -rexp(1)) { #
     
     # Nu boolean to see if was accepted or not
@@ -1582,7 +1581,7 @@ inverse_omega_plus_I <- function(tree,
   
   # Calculating Omega matrix plus I INVERSE
   Omega_matrix_plus_I_INV <- mapply(Omega_matrix_plus_I, FUN = function(omega_plus_I_tau) { # p is the shrinkage factor
-    chol2inv(chol(omega_plus_I_tau))
+    chol2inv(PD_chol(omega_plus_I_tau))
   }, SIMPLIFY = FALSE)
   
   # Adding the Omega_matrix_plus_I_Inv
@@ -1788,7 +1787,7 @@ update_g <- function(tree, x, nu, phi, residuals, seed = NULL, p) {
   
   # Getting the A matrix inverse
   A_matrix_inv <- mapply(Omega_matrix_inverse, FUN = function(x) {
-    chol2inv(chol(diag(p, nrow = nrow(x)) + x))
+    chol2inv(PD_chol(diag(p, nrow = nrow(x)) + x))
   }, SIMPLIFY = FALSE)  
   
   # Calculating g_mean posterior
