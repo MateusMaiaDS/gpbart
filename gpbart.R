@@ -39,7 +39,7 @@ tree_complete_conditional_gpbart <- function(tree, x, residuals, nu = 1, phi = 1
   
   # Log Omega
   log_det_Omega_plus_I_tau <- vapply(terminal_nodes, function(z, x=z$Omega_plus_I_tau) {
-    if(z$is_Omega_diag) log(prod(diag(x))) else determinant(x, logarithm = TRUE)$modulus
+    if(z$is_Omega_diag) sum(log(diag(x))) else determinant(x, logarithm = TRUE)$modulus
   }, numeric(1))
   
   # Defining RT_Omega_I_R
