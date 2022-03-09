@@ -9,15 +9,13 @@ library(spData)
 # Sourcing the kfold_file
 source("run_benchmark/spatial_cross_validation.R") # Spatial K-Fold value
 
-# swmud
-load("run_benchmark/data/swmud.Rdata")
-database<-swmud
-# database <- readRDS("run_benchmark/data/sim_dataset_100.Rds")
+# Database
+database <- readRDS("run_benchmark/data/sim_dataset_100.Rds")
 
 
 # Setting the cross-validation parameterisation
-N <-  1000
-n_iter <- 2500
+N <-  100
+n_iter <- 2000
 K <- 20
 beta <- 2
 rotation_boolean <- TRUE
@@ -30,7 +28,7 @@ cross_validation_object <- spatial_k_fold(data = database,
 
 
 # Separating the clusters
-number_cores <- 1 # Take care with this line to not break your computer
+number_cores <- 10 # Take care with this line to not break your computer
 cl <- makeCluster(number_cores)
 doParallel::registerDoParallel(cl)
 
@@ -56,6 +54,6 @@ simple_K_example <- foreach(i = 1:10, .packages = c("BART","SoftBart","tgp")) %d
 stopCluster(cl)
 
 saveRDS(object = simple_K_example,
-        file = paste0("run_benchmark/CORRECTED_new_rotation_FINAL_scale_gp_spatial_parallel_march_swmud_gpbart_mod_result_",N,"_K_",K,"_beta_",round(beta,0),"_phi_sample_",
+        file = paste0("robust_kmeans_FIX_PHI_with_gp_with_rotation_FINAL_gpbart_",N,"_K_",K,"_beta_",round(beta,0),"_phi_sample_",
                       phi_sample,
                       "rotation_boolean_",rotation_boolean,"_n_rep_",n_iter,".Rds"))

@@ -13,7 +13,8 @@ spatial_k_fold<-function(data,dependent_variable="y",k_partitions,seed=NULL){
   spatial_coordinates<-data[,c("lat","lon"),drop=FALSE]
   
   # Calling the clusters related with the number of partitions
-  cluster_model<-kmeans(spatial_coordinates,centers = k_partitions)
+  # cluster_model<-kmeans(spatial_coordinates,centers = k_partitions)
+  cluster_model <- kmeans(spatial_coordinates,centers = k_partitions, iter.max=.Machine$integer.max, nstart=100)
   
   # Saving partitions index
   partitions_index<-cluster_model$cluster
