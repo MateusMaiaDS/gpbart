@@ -13,7 +13,7 @@ source("run_benchmark/spatial_cross_validation.R") # Spatial K-Fold value
 boston.c %>% head
 boston_base<-boston.c %>% dplyr::select(LON,LAT,CMEDV,CRIM,ZN,INDUS,CHAS,NOX,RM,AGE,DIS,RAD,TAX,PTRATIO,B,LSTAT) %>% mutate(CHAS=as.numeric(as.character(CHAS)))
 colnames(boston_base)[c(1,2,3)]<- c("lat","lon","y")
-
+database <- boston_base
 
 # Setting the cross-validation parameterisation
 N <-  1000

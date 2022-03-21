@@ -307,7 +307,8 @@ my_rBart_gp <- function(x, y,
     }
     
     # Calculating \tau_{\mu} based on the scale of y
-    tau_mu <- (4 * number_trees * K_bart^2)/kappa
+    tau_mu_bart <- (4 * number_trees * K_bart^2)
+    tau_mu_gpbart <- tau_mu_bart/kappa
     
     # Getting the optimal tau values
     d_tau <- rate_tau(x = x,
@@ -328,7 +329,8 @@ my_rBart_gp <- function(x, y,
     }
     
     # Calculating \tau_{\mu} based on the scale of y
-    tau_mu <- (4 * number_trees * K_bart^2)/(kappa * (max(y_scale) - min(y_scale))^2)
+    tau_mu_bart <- (4 * number_trees * K_bart^2)/((max(y_scale) - min(y_scale))^2)
+    tau_mu_gpbart <- tau_mu_bart/kappa
     
     # Getting the optimal tau values
     d_tau <- rate_tau(x = x,
@@ -433,7 +435,8 @@ my_rBart_gp <- function(x, y,
     # Changing the bart boolean, when reach the maximum
     if(i >= bart_number_iter){
       bart_boolean <- FALSE
-    }
+      tau_mu <- tau_mu_gpbart
+    } else tau_mu <- tau_mu_bart
     
     if((i > burn) && ((i %% thin) == 0)) {
       
