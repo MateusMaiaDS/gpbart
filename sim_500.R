@@ -18,11 +18,11 @@ N <-  500
 n_iter <- 2000
 K <- 20
 beta <- 2
-rotation_boolean <- TRUE
+rotation_boolean <- FALSE
 phi_sample <- TRUE
 kappa_value <- 0.5
 
-cross_validation_object <- spatial_k_fold(data = database,
+cross_validation_object <- k_fold(data = database,
                                           dependent_variable = "y",
                                           k_partitions = 10,seed = 42)
 
@@ -54,6 +54,6 @@ simple_K_example <- foreach(i = 1:10, .packages = c("BART","SoftBart","tgp")) %d
 stopCluster(cl)
 
 saveRDS(object = simple_K_example,
-        file = paste0("robust_kmeans_FIX_PHI_with_gp_with_rotation_FINAL_gpbart_",N,"_K_",K,"_beta_",round(beta,0),"_phi_sample_",
+        file = paste0("gpbart/gpbart/simulations_2d_gpbart/results/saving_models/saving_model_k_fold_NEW_PHI_with_gp_no_rotation_FINAL_gpbart_",N,"_K_",K,"_beta_",round(beta,0),"_phi_sample_",
                       phi_sample,
-                      "rotation_boolean_",rotation_boolean,"_n_rep_",n_iter,".Rds"))
+                      "_rotation_boolean_",rotation_boolean,"_n_rep_",n_iter,"_kappa_",kappa_value,".Rds"))
