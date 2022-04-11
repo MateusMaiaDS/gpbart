@@ -1,6 +1,5 @@
 ### All helper functions which are common to bart.R & gpbart.R & some other helper functions
 # other common functions related to tree structures are found in
-source("tree_manipulation_objects.R")
 
 tree_prior <- function(tree, alpha, beta) {
   
@@ -43,7 +42,7 @@ update_tau <- function(x,
   rate_tau_post <- 0.5 * crossprod(y - predictions) + d_tau
   
   # Updating the \tau
-  tau_sample <- rgamma(n = 1, shape = shape_tau_post, rate = rate_tau_post)
+  tau_sample <- stats::rgamma(n = 1, shape = shape_tau_post, rate = rate_tau_post)
     return(tau_sample)
 }
 
@@ -51,7 +50,7 @@ update_tau <- function(x,
 zero_tau_prob <- function(x, naive_tau_value, prob, shape) {
   
   # Find the zero to the function P(tau < tau_ols) = 0.1, for a defined   
-  return(pgamma(naive_tau_value,
+  return(stats::pgamma(naive_tau_value,
                 shape = shape,
                 rate = x) - (1 - prob))
 }
@@ -59,7 +58,7 @@ zero_tau_prob <- function(x, naive_tau_value, prob, shape) {
 zero_tau_prob_squared <- function(rate, naive_tau_value, prob, shape) {
   
   # Find the zero to the function P(tau < tau_ols) = 0.1, for a defined   
-  return((pgamma(naive_tau_value,
+  return((stats::pgamma(naive_tau_value,
                  shape = shape,
                  rate = rate) - (1 - prob))^2)
 }
@@ -74,7 +73,7 @@ naive_tau <- function(x, y) {
   p <- ifelse(is.null(ncol(x)), 1, ncol(x))
   
   # Naive lm_mod 
-  lm_mod <- lm(formula = y ~ ., data =  data.frame(y, x))
+  lm_mod <- stats::lm(formula = y ~ ., data =  data.frame(y, x))
   
   sigma <- sqrt(sum((lm_mod$residuals)^2)/(n - p))
   
@@ -92,7 +91,7 @@ naive_sigma <- function(x,y){
   p <- ifelse(is.null(ncol(x)), 1, ncol(x))
   
   # Naive lm_mod 
-  lm_mod <- lm(formula = y ~ ., data =  data.frame(y,x))
+  lm_mod <- stats::lm(formula = y ~ ., data =  data.frame(y,x))
   
   sigma <- sqrt(sum((lm_mod$residuals)^2)/(n - p))
     return(sigma)
@@ -108,13 +107,13 @@ rate_tau <- function(x, # X value
                        y = y)
   
   # Getting the root
-  min_root <-  try(uniroot(f = zero_tau_prob, interval = c(1e-2, 100),
+  min_root <-  try(stats::uniroot(f = zero_tau_prob, interval = c(1e-2, 100),
                            naive_tau_value = tau_ols,
                            prob = prob, shape = shape)$root, silent = TRUE)
   
   if(inherits(min_root, "try-error")) {
     # Verifying the squared version
-    min_root <- optim(par = runif(1), fn = zero_tau_prob_squared,
+    min_root <- stats::optim(par = stats::runif(1), fn = zero_tau_prob_squared,
                       method = "L-BFGS-B", lower = 0,
                       naive_tau_value = tau_ols,
                       prob = prob, shape = shape)$par
@@ -148,9 +147,9 @@ rmse <- function(obs, pred) {
 
 rMVN_var <- function(mean, Sigma) {
   if(is.matrix(Sigma)) {
-    drop(mean + crossprod(PD_chol(Sigma), rnorm(length(mean))))
+    drop(mean + crossprod(PD_chol(Sigma), stats::rnorm(length(mean))))
   } else {
-    mean + sqrt(Sigma) * rnorm(length(mean))
+    mean + sqrt(Sigma) * stats::rnorm(length(mean))
   }
 }
 

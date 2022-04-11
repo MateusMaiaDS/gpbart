@@ -1,0 +1,28 @@
+Package: gpbart
+Title: GP-BART: Gaussian Processes Bayesian Additive Regression Trees 
+Version: 0.0.0.9000
+Authors@R: 
+    c(person("Mateus", "Maia", , "mateus.maiamarques.2021@mumail.ie",
+    role = c("aut","cre"),
+           comment = c(ORCID = "0000-0001-7056-386X")),
+    person("Keefe ", "Murphy", , "keefe.Murphy@mu.ie",
+    role = c("aut")),
+    person("Andrew", "C. Parnell", , "andrew.parnell@mu.ie",
+    role = c("aut"),
+           comment = c(ORCID = "0000-0001-7956-7939")))
+Maintainer: Mateus Maia <mateus.maiamarques.2021@mumail.ie>
+Description: Implementation of GP-BART algorithm, which is a novel extension to Bayesian Additive Regression Trees  as an extension of BART which assumes Gaussian process (GP) priors for the predictions of each terminal node among all trees For more details check Maia et. al (2022) < "https://doi.org/10.48550/arXiv.2204.02112">.
+License: MIT + file LICENSE
+Encoding: UTF-8
+Imports:
+    mvtnorm,
+    stats,
+    stringr,
+    Rcpp
+Roxygen: list(markdown = TRUE)
+RoxygenNote: 7.1.2
+LinkingTo: 
+    Rcpp
+Suggests: 
+    testthat (>= 3.0.0)
+Config/testthat/edition: 3

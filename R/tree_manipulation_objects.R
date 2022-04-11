@@ -82,7 +82,7 @@ grow_projection_tree <- function(tree, x, node_min_size, theta = NULL) {
     # Selecting randomly (OR NOT) the angle to be rotated
     if(is.null(theta)) {
       # Selecting a uniform theta
-      theta <- runif(n = 1, min = 0, max = pi)
+      theta <- stats::runif(n = 1, min = 0, max = pi)
     }
     
     # Rotated Lon and Lat
@@ -513,7 +513,7 @@ change_projection_tree_verb <- function(tree, x, node_min_size, theta = NULL) {
     # Selecting randomly (OR NOT) the angle to be rotated
     if(is.null(theta)) {
       # Selecting a uniform theta
-      theta<-runif(n = 1, min = 0, max = pi)
+      theta <- stats::runif(n = 1, min = 0, max = pi)
     }
     
     # Rotated Lon and Lat
