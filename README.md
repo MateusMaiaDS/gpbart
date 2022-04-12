@@ -47,4 +47,4 @@ pred_gpbart <- predict(rBart_model = gpbart_mod, x_test = x_test, type = "mean")
 ```
 
 ## References
-For more details: Maia, Mateus, Keefe Murphy, and Andrew C. Parnell. "GP-BART: a novel Bayesian additive regression trees approach using Gaussian processes." arXiv preprint arXiv:2204.02112 (2022).[https://doi.org/10.48550/arXiv.2204.02112]
+For more details: (**Maia, Mateus, Keefe Murphy, and Andrew C. Parnell. "GP-BART: a novel Bayesian additive regression trees approach using Gaussian processes." arXiv preprint arXiv:2204.02112 (2022)**)[https://doi.org/10.48550/arXiv.2204.02112].
