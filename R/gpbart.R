@@ -27,7 +27,7 @@ tree_complete_conditional_gpbart <- function(tree, x, residuals, nu = 1, phi = 1
 
   # Calculating value S
   S <- unlist(mapply(terminal_nodes, FUN=function(z, x=z$Omega_plus_I_inv) {
-    if(z$is_Omega_diag) sum(x) else sum(diag(x))
+    sum(x)
   }, SIMPLIFY = TRUE)) + tau_mu
 
   # Log Omega
