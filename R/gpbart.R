@@ -322,12 +322,12 @@ gp_bart <- function(x, y,
   a_min <- NULL
   b_max <- NULL
 
+  a_min <- min(y)
+  b_max <- max(y)
+  
   # Scale values
   if(scale_boolean) {
     # Normalizing y
-    a_min <- min(y)
-    b_max <- max(y)
-
     y_scale <- normalize_bart(y = y)
 
     # Defing the nu vector if not in default
@@ -475,10 +475,20 @@ gp_bart <- function(x, y,
       # Saving the store of the other ones
       curr <- (i - burn) / thin
       tree_store[[curr]] <- current_trees
-      tau_store[[curr]] <- tau
+      tau_store[curr] <- if(scale_boolean){
+        tau*( (b_max-a_min)^2)
+      } else{
+        tau
+      }
 
-      y_hat_store[curr, ] <- colSums(predictions)
-
+      y_hat_store[curr, ] <- if(scale_boolean){
+        
+        # Getting the unnormalized version from tau
+        unnormalize_bart(colSums(predictions),a = a_min,b = b_max)
+      } else {
+        
+        colSums(predictions)
+      }
       # Saving the current partial
       current_partial_residuals_list[[curr]] <- current_partial_residuals_matrix
 
