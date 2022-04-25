@@ -490,10 +490,18 @@ gp_bart <- function(x, y,
         colSums(predictions)
       }
       # Saving the current partial
-      current_partial_residuals_list[[curr]] <- current_partial_residuals_matrix
-
+      current_partial_residuals_list[[curr]] <- if(scale_boolean){
+        unnormalize_bart(current_partial_residuals_matrix,a = a_min, b = b_max)
+      } else {
+        current_partial_residuals_matrix
+      }
+      
       # Saving the predictions
-      current_predictions_list[[curr]] <- predictions
+      current_predictions_list[[curr]] <- if(scale_boolean){
+        unnormalize_bart(predictions, a = a_min, b = b_max)
+      } else {
+        predictions
+      }
 
       phi_store[curr, ] <- phi_vector
       phi_proposal_store[curr, ] <- phi_vector_proposal
@@ -1262,12 +1270,12 @@ predict.gpbart_GPBART <- function(rBart_model,..., x_test, type = c("all"), # ty
     # Iterating over all trees (test)
     y_pred_final <- y_pred_aux$all_tree_pred
 
-    if(rBart_model$scale_boolean) {
-      # Recovering the prediction interval from test
-      y_hat_matrix[i, ] <- unnormalize_bart(colSums(y_pred_final), a = rBart_model$a_min, b = rBart_model$b_max)
-    } else {
+    # if(rBart_model$scale_boolean) {
+    #   # Recovering the prediction interval from test
+    #   y_hat_matrix[i, ] <- unnormalize_bart(colSums(y_pred_final), a = rBart_model$a_min, b = rBart_model$b_max)
+    # } else {
       y_hat_matrix[i, ] <- colSums(y_pred_aux$all_tree_pred)
-    }
+    # }
 
     y_list_matrix[[i]] <- y_pred_final
 
