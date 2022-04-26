@@ -287,14 +287,19 @@ gp_bart <- function(x, y,
   # If there's only one covariate
   rotation <- ncol(x) != 1
 
+  mean_x <- NULL
+  sd_x <- NULL
+  
   # Scaling the x
   if(x_scale){
     x_original <- x
     # Scaled version
     xscale <- scale(x)
     mean_x <- attr(xscale,"scaled:center")
-    sd_x <- attr(xscale,"scaled:center")
+    sd_x <- attr(xscale,"scaled:scale")
     x <- as.matrix(xscale)
+  } else{ 
+    x_original <- x
   }
 
   # Adjusting the kappa (avoiding the Infinity error)
@@ -475,11 +480,11 @@ gp_bart <- function(x, y,
       # Saving the store of the other ones
       curr <- (i - burn) / thin
       tree_store[[curr]] <- current_trees
-      tau_store[curr] <- if(scale_boolean){
-        tau*( (b_max-a_min)^2)
-      } else{
+      tau_store[curr] <- #if(scale_boolean){
+       # tau*( (b_max-a_min)^2)
+      # } else{
         tau
-      }
+      # }
 
       y_hat_store[curr, ] <- if(scale_boolean){
         
@@ -490,11 +495,11 @@ gp_bart <- function(x, y,
         colSums(predictions)
       }
       # Saving the current partial
-      current_partial_residuals_list[[curr]] <- if(scale_boolean){
-        unnormalize_bart(current_partial_residuals_matrix,a = a_min, b = b_max)
-      } else {
+      current_partial_residuals_list[[curr]] <- #if(scale_boolean){
+        # unnormalize_bart(current_partial_residuals_matrix,a = a_min, b = b_max)
+      # } else {
         current_partial_residuals_matrix
-      }
+      # }
       
       # Saving the predictions
       current_predictions_list[[curr]] <- if(scale_boolean){
@@ -866,7 +871,7 @@ gp_bart <- function(x, y,
                   phi_proposal_store = phi_proposal_store,
                   nu_vector = nu_vector,
                   y = y_scale,
-                  X = x,
+                  X = x_original,
                   x_scale = x_scale,
                   mean_x = mean_x,
                   sd_x = sd_x,
@@ -1163,7 +1168,8 @@ predict_gaussian_from_multiple_trees <- function(multiple_trees, # A list of tre
         # Selecting the observations from the test node
         # CHANGE HERE, TO SELECT WHICH ONE WILL BE USED
 
-        x_star <- matrix(x_new[new_tree[[list_nodes[[i]]]]$test_index, ], nrow = length(new_tree[[list_nodes[[i]]]]$test_index))
+        x_star <- matrix(x_new[new_tree[[list_nodes[[i]]]]$test_index, ],
+                         nrow = length(new_tree[[list_nodes[[i]]]]$test_index))
 
         # Calcualting the distance matrix
         distance_matrix_current_node <- symm_distance_matrix(m1 = x_current_node)
@@ -1172,7 +1178,7 @@ predict_gaussian_from_multiple_trees <- function(multiple_trees, # A list of tre
         if(isFALSE(pred_bart_only)) {
 
           # Getting the GP from a terminal node
-          gp_process <- gp_main(
+          gp_process <- gp_main_sample(
             x_train = x_current_node, distance_matrix_train = distance_matrix_current_node,
             y_train = matrix((partial_residuals[m,new_tree[[list_nodes[[i]]]]$observations_index]) - new_tree[[list_nodes[[i]]]]$mu,
                               nrow = nrow(x_current_node)),
@@ -1263,19 +1269,20 @@ predict.gpbart_GPBART <- function(rBart_model,..., x_test, type = c("all"), # ty
     y_pred_aux <- predict_gaussian_from_multiple_trees(
       multiple_trees = current_tree, x_train = x_train,
       x_new = x_test, partial_residuals = rBart_model$current_partial_residuals_list[[i]],
-      phi_vector = rBart_model$phi_store[i, ], nu_vector = rBart_model$nu_vector,
+      phi_vector = rBart_model$phi_store[i, ],
+      nu_vector = rBart_model$nu_vector,
       tau = rBart_model$tau_store[[i]], pred_bart_only = pred_bart_only
     )
 
     # Iterating over all trees (test)
     y_pred_final <- y_pred_aux$all_tree_pred
 
-    # if(rBart_model$scale_boolean) {
-    #   # Recovering the prediction interval from test
-    #   y_hat_matrix[i, ] <- unnormalize_bart(colSums(y_pred_final), a = rBart_model$a_min, b = rBart_model$b_max)
-    # } else {
+    if(rBart_model$scale_boolean) {
+      # Recovering the prediction interval from test
+      y_hat_matrix[i, ] <- unnormalize_bart(colSums(y_pred_final), a = rBart_model$a_min, b = rBart_model$b_max)
+    } else {
       y_hat_matrix[i, ] <- colSums(y_pred_aux$all_tree_pred)
-    # }
+    }
 
     y_list_matrix[[i]] <- y_pred_final
 
@@ -1288,9 +1295,9 @@ predict.gpbart_GPBART <- function(rBart_model,..., x_test, type = c("all"), # ty
                   median = apply(y_hat_matrix, 2, "median"),
     ),
     sd = switch(type,
-                all = unlist(rBart_model$tau_store)^(-1/2),
-                mean = mean(1/vapply(rBart_model$tau_store, sqrt, numeric(1))),
-                median = stats::median(1/vapply(rBart_model$tau_store, sqrt, numeric(1)))
+                all = unlist(rBart_model$tau_store/((rBart_model$b_max-rBart_model$a_min)^2))^(-1/2),
+                mean = mean(1/vapply(rBart_model$tau_store/((rBart_model$b_max-rBart_model$a_min)^2), sqrt, numeric(1))),
+                median = stats::median(1/vapply(rBart_model$tau_store/((rBart_model$b_max-rBart_model$a_min)^2), sqrt, numeric(1)))
     )
   )
 
@@ -1401,6 +1408,7 @@ inverse_omega_plus_I <- function(tree,
                                  x = x,
                                  nu, phi,
                                  tau,
+                                 number_trees = number_trees,
                                  gp_variables = colnames(x)  # Selecting which gp-variables to use
 
 ) {
@@ -1435,7 +1443,7 @@ inverse_omega_plus_I <- function(tree,
 
   # Calculating Omega_plus_I*tau^(-1)
   Omega_matrix_plus_I <- mapply(Omega_matrix, FUN = function(omega) {
-    omega + diag(1/tau, nrow = nrow(omega))
+    omega + diag(1/(tau), nrow = nrow(omega))
   }, SIMPLIFY = FALSE)
 
   # Calculating Omega matrix plus I INVERSE

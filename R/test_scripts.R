@@ -9,12 +9,14 @@
 # y <- sin(x)+rnorm(n = length(x),sd = 0.1)
 # 
 # # Running the model
-# gpbart_mod <- gpbart::gp_bart(x = x,y = y,number_trees = 2,kappa = 0.5,
-#                               beta = 20,alpha = 0.9,rotation = FALSE,scale_boolean = TRUE)
+# gpbart_mod <- gpbart::gp_bart(x = x,y = y,number_trees = 1,kappa = 0.5,
+#                               beta = 20,alpha = 0.9,
+#                               rotation = FALSE,scale_boolean = TRUE,x_scale = TRUE)
 # rBart_model <- gpbart_mod
-# x_test <- x
-# # x_t
-# pred_gpbart <- predict(gpbart_mod,x_test = x_test,type = "mean")
+# x_test <- sort(runif(n = 100,min = -pi,max = pi))
+# x_test <- as.matrix(x_test)
+# colnames(x_test) <- colnames(x)
+# pred_gpbart <- predict(gpbart_mod,x_test = x,type = "all")
 # 
 # # Comparing the up sd from the quantile with the from \tau
 # # up_pi <- pred_gpbart$out$pred %>% apply(2,function(x)quantile(x,probs = c(0.75)))
@@ -28,4 +30,9 @@
 # 
 # plot(x,y,pch=20)
 # lines(x,rBart_model$y_hat %>% colMeans())
-# lines(x_test,pred_gpbart$out$pred,col = "blue")
+# lines(x,pred_gpbart$out$pred[120,],col = "blue")
+# lines(x,pred_gpbart$out$pred %>% colMeans(), col = "red")
+# # lines(x,rBart_model$current_predictions_list[[3]], col = "orange")
+# 
+
+# 
