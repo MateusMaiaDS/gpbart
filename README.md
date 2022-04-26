@@ -15,9 +15,13 @@ To run an example of the GP-BART algorithm just ran the following code
 
 ```r
 rm(list=ls())
+# Loading package
 library(gpbart)
+
+# Setting a seed
 set.seed(42)
-# # Creating a simple example
+
+# Creating a simple example
 x <- sort(runif(n = 100,min = -pi,max = pi))
 x <- as.matrix(x)
 colnames(x) <- "x"
