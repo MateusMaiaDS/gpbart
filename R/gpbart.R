@@ -1216,9 +1216,12 @@ count_terminal_nodes <- function(tree) {
 #' @param pred_bart_only boolean if there are only bart predictions
 #'
 #' @export
-predict.gpbart_GPBART <- function(rBart_model,..., x_test, type = c("all"), # type argument Can be "all", "mean" or "meadian"
+predict.gpbart_GPBART <- function(rBart_model,..., x_test, type = c("all","mean","median"), # type argument Can be "all", "mean" or "meadian"
                                   pred_bart_only = FALSE) {
-
+  
+  # Adjusting the type
+  type <- match.arg(type)
+  
   # Loading x_train
   if(rBart_model$x_scale){
     x_train <- as.matrix(scale(rBart_model$X,center = rBart_model$mean_x,scale = rBart_model$sd_x))
