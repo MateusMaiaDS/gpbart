@@ -480,11 +480,7 @@ gp_bart <- function(x, y,
       # Saving the store of the other ones
       curr <- (i - burn) / thin
       tree_store[[curr]] <- current_trees
-      tau_store[curr] <- #if(scale_boolean){
-       # tau*( (b_max-a_min)^2)
-      # } else{
-        tau
-      # }
+      tau_store[curr] <- tau
 
       y_hat_store[curr, ] <- if(scale_boolean){
         
@@ -495,12 +491,8 @@ gp_bart <- function(x, y,
         colSums(predictions)
       }
       # Saving the current partial
-      current_partial_residuals_list[[curr]] <- #if(scale_boolean){
-        # unnormalize_bart(current_partial_residuals_matrix,a = a_min, b = b_max)
-      # } else {
-        current_partial_residuals_matrix
-      # }
-      
+      current_partial_residuals_list[[curr]] <- current_partial_residuals_matrix
+
       # Saving the predictions
       current_predictions_list[[curr]] <- if(scale_boolean){
         unnormalize_bart(predictions, a = a_min, b = b_max)
@@ -530,7 +522,6 @@ gp_bart <- function(x, y,
 
           # Calculating what Chipman called as R(j) = y - g_others_trees
           if(number_trees > 2) {
-            # current_partial_residuals <- y_scale - colSums(predictions[-j, , drop = FALSE])
             current_partial_residuals <- y_scale - colSums(predictions[-j, , drop = FALSE])
           } else {
             current_partial_residuals <- y_scale - predictions[-j, ]
@@ -1183,7 +1174,7 @@ predict_gaussian_from_multiple_trees <- function(multiple_trees, # A list of tre
             y_train = matrix((partial_residuals[m,new_tree[[list_nodes[[i]]]]$observations_index]) - new_tree[[list_nodes[[i]]]]$mu,
                               nrow = nrow(x_current_node)),
             x_star = x_star, tau = tau,
-            nu = nu, phi = phi,get_cov_star = FALSE
+            nu = nu, phi = phi,get_cov_star = TRUE
           )
 
           # Creating the mu vector
@@ -1287,7 +1278,12 @@ predict.gpbart_GPBART <- function(rBart_model,..., x_test, type = c("all"), # ty
     y_list_matrix[[i]] <- y_pred_final
 
   }
-
+  # Chaging the value of \tau in case of scaling
+  rBart_model$tau_store <- if(rBart_model$scale_boolean){
+    unnormalize_bart(rBart_model$tau_store,a = rBart_model$a_min, b = rBart_model$b_max)
+  } else {
+    rBart_model$tau_store
+  }
   out <- list(
     pred = switch(type,
                   all = y_hat_matrix,
@@ -1295,9 +1291,9 @@ predict.gpbart_GPBART <- function(rBart_model,..., x_test, type = c("all"), # ty
                   median = apply(y_hat_matrix, 2, "median"),
     ),
     sd = switch(type,
-                all = unlist(rBart_model$tau_store/((rBart_model$b_max-rBart_model$a_min)^2))^(-1/2),
-                mean = mean(1/vapply(rBart_model$tau_store/((rBart_model$b_max-rBart_model$a_min)^2), sqrt, numeric(1))),
-                median = stats::median(1/vapply(rBart_model$tau_store/((rBart_model$b_max-rBart_model$a_min)^2), sqrt, numeric(1)))
+                all = rBart_model$tau_store^(-1/2),
+                mean = mean(1/vapply(rBart_model$tau_store, sqrt, numeric(1))),
+                median = stats::median(1/vapply(rBart_model$tau_store, sqrt, numeric(1)))
     )
   )
 
