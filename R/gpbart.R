@@ -293,7 +293,7 @@ gp_bart <- function(x, y,
     # Scaled version
     xscale <- scale(x)
     mean_x <- attr(xscale,"scaled:center")
-    sd_x <- attr(xscale,"scaled:scale")
+    sd_x <- attr(xscale,"scaled:center")
     x <- as.matrix(xscale)
   }
 
