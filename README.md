@@ -14,34 +14,34 @@ devtools::install_github("MateusMaiaDS/gpbart")
 To run an example of the GP-BART algorithm just ran the following code
 
 ```r
-# This file is just to measure if the main code for GP-BART is running well, isn't made for 
-# evaluation purposes.
-library(gpbart)
-
-# Importing data and library
 rm(list=ls())
-
-# Setting a seed
+library(gpbart)
 set.seed(42)
-
-# Getting a simple train and test dataset
-train_data <- mlbench::mlbench.friedman1(n = 50, sd = 1)
-x_train <- train_data$x
-y_train <- train_data$y
-
-test_data <- mlbench::mlbench.friedman1(n = 10, sd = 1)
-x_test <- test_data$x
-y_test <- test_data$y
-colnames(x_train) <- colnames(x_test) <- paste0("x.", seq_len(ncol(x_train)))
+# # Creating a simple example
+x <- sort(runif(n = 100,min = -pi,max = pi))
+x <- as.matrix(x)
+colnames(x) <- "x"
+y <- sin(x)+rnorm(n = length(x),sd = 0.1)
 
 # Running the model
-gpbart_mod <- gp_bart(x = x_train,
-                          y = y_train,
-                          number_trees = 20, node_min_size = 5, kappa = 0.5,
-                          n_iter = 2000, alpha = 0.5, beta = 20, scale_boolean = TRUE)
+gpbart_mod <- gpbart::gp_bart(x = x,y = y,number_trees = 5,kappa = 0.5,
+                              beta = 20,alpha = 0.9)
+rBart_model <- gpbart_mod
+x_test <- sort(runif(n = 100,min = -pi,max = pi))
+x_test <- as.matrix(x_test)
+colnames(x_test) <- colnames(x)
+pred_gpbart <- predict(gpbart_mod,x_test = x,type = "all")
 
-# Running the prediction
-pred_gpbart <- predict(rBart_model = gpbart_mod, x_test = x_test, type = "mean")
+# Comparing the up sd from the quantile with the from \tau
+up_pi <- apply(pred_gpbart$out$pred ,2,function(x)quantile(x,probs = c(0.75)))
+low_pi <-  apply(pred_gpbart$out$pred,2,function(x)quantile(x,probs = c(0.25)))
+
+# Plotting the result
+plot(x,y,pch=20)
+lines(x,colMeans(pred_gpbart$out$pred), col = "red")
+lines(x,low_pi, col = "red", lty = "dashed")
+lines(x,up_pi, col = "red", lty = "dashed")
+
 
 
 ```
