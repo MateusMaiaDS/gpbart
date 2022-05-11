@@ -315,9 +315,7 @@ prune_tree_verb <- function(tree, x) {
   # Selecting parent nodes
   parent_nodes <- unique(vapply(tree, "[[", numeric(1), "parent_node"))
   parent_nodes <- parent_nodes[!is.na(parent_nodes) & parent_nodes >= 0]
-  if(length(parent_nodes) == 1) {
-    return(tree)
-  }
+
   
   # Choose the pairs nodes
   pairs_terminal_nodes <- t(sapply(parent_nodes, function(x) {
