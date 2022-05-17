@@ -1282,11 +1282,12 @@ predict.gpbart_GPBART <- function(rBart_model,..., x_test, type = c("all","mean"
 
   }
   # Chaging the value of \tau in case of scaling
-  rBart_model$tau_store <- if(rBart_model$scale_boolean){
-    (rBart_model$tau_store/(rBart_model$b_max-rBart_model$a_min)^2)
-  } else {
-    rBart_model$tau_store
-  }
+  # rBart_model$tau_store <- if(rBart_model$scale_boolean){
+  #   (rBart_model$tau_store/(rBart_model$b_max-rBart_model$a_min)^2)
+  # } else {
+  #   rBart_model$tau_store
+  # }
+  
   out <- list(
     pred = switch(type,
                   all = y_hat_matrix,
