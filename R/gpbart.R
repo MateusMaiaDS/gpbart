@@ -1295,8 +1295,8 @@ predict.gpbart_GPBART <- function(rBart_model,..., x_test, type = c("all","mean"
     ),
     sd = switch(type,
                 all = rBart_model$tau_store^(-1/2),
-                mean = mean(1/vapply(rBart_model$tau_store, sqrt, numeric(1))),
-                median = stats::median(1/vapply(rBart_model$tau_store, sqrt, numeric(1)))
+                mean = mean(rBart_model$tau_store^(-1/2)),
+                median = stats::median(rBart_model$tau_store^(-1/2)))
     )
   )
 
