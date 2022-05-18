@@ -775,7 +775,7 @@ swap_tree_verb <- function(tree, x, node_min_size) {
 }
 
 # Sort an action to update the tree
-update_tree_verb <- function(tree, x, node_min_size, verb, rotation = TRUE, theta = NULL) {
+update_tree_verb <- function(tree, x, node_min_size, verb,gp_variables, rotation = TRUE, theta = NULL) {
   
   # Update the tree by a verb
   updated_tree <- switch(verb,
@@ -784,11 +784,11 @@ update_tree_verb <- function(tree, x, node_min_size, verb, rotation = TRUE, thet
                                           theta = theta
                          ), # Grow verb
                          grow_projection = grow_projection_tree(tree = tree,
-                                                                x = x,
+                                                                x = x,gp_variables = gp_variables,
                                                                 node_min_size = node_min_size,theta = theta),
                          prune = prune_tree_verb(tree, x = x), # Prune verb
                          change = change_tree_verb(tree, x = x, node_min_size = node_min_size, rotation = rotation, theta = theta), # Change verb
-                         change_projection = change_projection_tree_verb(tree = tree,
+                         change_projection = change_projection_tree_verb(tree = tree,gp_variables = gp_variables,
                                                                          node_min_size = node_min_size,theta = theta,x = x),
                          swap = swap_tree_verb(tree, x = x, node_min_size = node_min_size) # Swap verb
   )
