@@ -36,7 +36,7 @@ A <- function(theta) {
 # Objects to test the grow_project_tree_verb function
 # ==================================#
 
-grow_projection_tree <- function(tree, x, node_min_size, theta = NULL) {
+grow_projection_tree <- function(tree, x, node_min_size, gp_variables, theta = NULL) {
   
   # Controlling the "bad trees"
   bad_trees <- TRUE
@@ -68,7 +68,7 @@ grow_projection_tree <- function(tree, x, node_min_size, theta = NULL) {
     current_node <- new_tree[[node_to_grow]]
     
     # Selecting the covariate in case of projection
-    node_var_pair <- sample(colnames(x)[apply(x, 2, is.numeric)], 2) # selecting the covariate WITH NO ROTATION
+    node_var_pair <- sample(gp_variables[apply(x, 2, is.numeric)], 2) # selecting the covariate WITH NO ROTATION
     
     # Selecting the node_var that it will be sample
     node_var <- sample(node_var_pair, size = 1)
@@ -483,7 +483,7 @@ change_tree_verb <- function(tree, x, node_min_size, rotation = FALSE, theta = N
 # ==================================#
 
 # Change a tree verb
-change_projection_tree_verb <- function(tree, x, node_min_size, theta = NULL) {
+change_projection_tree_verb <- function(tree, x, node_min_size, gp_variables, theta = NULL) {
   
   # Controlling the "bad trees"
   bad_trees <- TRUE
@@ -504,7 +504,7 @@ change_projection_tree_verb <- function(tree, x, node_min_size, theta = NULL) {
     current_node <- new_tree[[node_to_change]]
     
     # Selecting the covariate
-    node_var_pair <- sample(colnames(x)[apply(x, 2, is.numeric)], 2)
+    node_var_pair <- sample(gp_variables[apply(x, 2, is.numeric)], 2)
     
     node_var <- sample(node_var_pair,size = 1)
     
