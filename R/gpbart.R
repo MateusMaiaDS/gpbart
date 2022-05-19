@@ -646,6 +646,7 @@ gp_bart <- function(x, y,
         new_trees[[j]] <- update_tree_verb(
           tree = current_trees[[j]],
           x = x,
+          gp_variables = gp_variables,
           node_min_size = node_min_size,
           verb = verb, rotation = rotation, theta = theta
         )
