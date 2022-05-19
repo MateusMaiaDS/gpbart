@@ -68,7 +68,7 @@ grow_projection_tree <- function(tree, x, node_min_size, gp_variables, theta = N
     current_node <- new_tree[[node_to_grow]]
     
     # Selecting the covariate in case of projection
-    node_var_pair <- sample(gp_variables[apply(x, 2, is.numeric)], 2) # selecting the covariate WITH NO ROTATION
+    node_var_pair <- sample(gp_variables, 2) # selecting the covariate WITH NO ROTATION
     
     # Selecting the node_var that it will be sample
     node_var <- sample(node_var_pair, size = 1)
@@ -86,7 +86,7 @@ grow_projection_tree <- function(tree, x, node_min_size, gp_variables, theta = N
     }
     
     # Rotated Lon and Lat
-    rotated_x <- tcrossprod(A(theta), x[, node_var_pair])
+    rotated_x <- tcrossprod(A(theta), x[, node_var_pair,drop = FALSE])
     rownames(rotated_x) <- node_var_pair
     
     # Selecting the rotated var split
@@ -427,7 +427,7 @@ change_tree_verb <- function(tree, x, node_min_size, rotation = FALSE, theta = N
       if(is.list(current_node_aux$node_var)) {
         
         # Rotated Lon and Lat
-        rotated_x <- tcrossprod(A(current_node_aux$theta), x[, current_node_aux$node_var$node_var_pair])
+        rotated_x <- tcrossprod(A(current_node_aux$theta), x[, current_node_aux$node_var$node_var_pair,drop = FALSE])
         rownames(rotated_x) <- current_node_aux$node_var$node_var_pair
         
         # Updating observations from the left node
@@ -504,7 +504,7 @@ change_projection_tree_verb <- function(tree, x, node_min_size, gp_variables, th
     current_node <- new_tree[[node_to_change]]
     
     # Selecting the covariate
-    node_var_pair <- sample(gp_variables[apply(x, 2, is.numeric)], 2)
+    node_var_pair <- sample(gp_variables, 2) # selecting the covariate WITH NO ROTATION
     
     node_var <- sample(node_var_pair,size = 1)
     
@@ -515,7 +515,7 @@ change_projection_tree_verb <- function(tree, x, node_min_size, gp_variables, th
     }
     
     # Rotated Lon and Lat
-    rotated_x <- tcrossprod(A(theta), x[, node_var_pair])
+    rotated_x <- tcrossprod(A(theta), x[, node_var_pair,drop = FALSE])
     rownames(rotated_x) <- node_var_pair
     
     # Selecting the rotated var split
@@ -547,7 +547,7 @@ change_projection_tree_verb <- function(tree, x, node_min_size, gp_variables, th
       if(is.list(current_node_aux$node_var)) {
         
         # Rotated Lon and Lat
-        rotated_x <- tcrossprod(A(current_node_aux$theta), x[, current_node_aux$node_var$node_var_pair])
+        rotated_x <- tcrossprod(A(current_node_aux$theta), x[, current_node_aux$node_var$node_var_pair,drop = FALSE])
         rownames(rotated_x) <- current_node_aux$node_var$node_var_pair
         
         # Updating observations from the left node
@@ -723,7 +723,7 @@ swap_tree_verb <- function(tree, x, node_min_size) {
       if(is.list(current_node_aux$node_var)) {
         
         # Rotated Lon and Lat
-        rotated_x <- tcrossprod(A(current_node_aux$theta), x[, current_node_aux$node_var$node_var_pair])
+        rotated_x <- tcrossprod(A(current_node_aux$theta), x[, current_node_aux$node_var$node_var_pair,drop = FALSE])
         rownames(rotated_x) <- current_node_aux$node_var$node_var_pair
         
         # Updating observations from the left node
