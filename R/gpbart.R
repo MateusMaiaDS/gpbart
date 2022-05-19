@@ -55,6 +55,94 @@ tree_complete_conditional_gpbart <- function(tree, x, residuals, nu = 1, phi = 1
                 R_Omega_I_one = R_Omega_I_one))
 }
 
+tree_complete_conditional_gpbart_grow <- function(old_tree,new_tree,
+                                                  x, residuals, nu = 1, phi = 1,
+                                             tau_mu,
+                                             number_trees = number_trees) {
+  
+  # Selecting the terminal nodes
+  old_terminal_nodes <- old_tree[names(which(vapply(old_tree, "[[", numeric(1), "terminal") == 1))]
+  new_terminal_nodes <- new_tree[names(which(vapply(new_tree, "[[", numeric(1), "terminal") == 1))]
+  
+  # New nodes
+  nodes_new_grow <- new_terminal_nodes[!(names(new_terminal_nodes) %in% names(old_terminal_nodes))]
+  parent_old_node <- old_terminal_nodes[paste0("node_",nodes_which_grow[[1]]$parent_node)]
+  
+  # Number of nodes
+  n_node_new <- length(nodes_new_grow)
+  
+  # Picking each node size
+  nodes_size_new <- vapply(nodes_new_grow, function(x) {
+    length(x$observations_index)
+  }, numeric(1))
+  
+  # Residuals terminal nodes
+  residuals_terminal_nodes_new_grow <- lapply(nodes_new_grow, function(x) {
+    residuals[x$observations_index]
+  })
+  
+  residuals_terminal_nodes_old_grow <- lapply(parent_old_node, function(x) {
+    residuals[x$observations_index]
+  })
+  
+  # Calculating value S
+  S_new <- unlist(mapply(nodes_new_grow, FUN=function(z, x=z$Omega_plus_I_inv) {
+    if(z$is_Omega_diag) sum(diag(x)) else sum(x)
+  }, SIMPLIFY = TRUE)) + tau_mu
+  
+  S_old <- unlist(mapply(parent_old_node, FUN=function(z, x=z$Omega_plus_I_inv) {
+    if(z$is_Omega_diag) sum(diag(x)) else sum(x)
+  }, SIMPLIFY = TRUE)) + tau_mu
+  
+  
+  # Log Omega
+  log_det_Omega_plus_I_tau_new <- vapply(nodes_new_grow, function(z, x=z$Omega_plus_I_tau) {
+    if(z$is_Omega_diag) sum(log(diag(x))) else determinant(x, logarithm = TRUE)$modulus
+  }, numeric(1))
+  
+  log_det_Omega_plus_I_tau_old <- vapply(parent_old_node, function(z, x=z$Omega_plus_I_tau) {
+    if(z$is_Omega_diag) sum(log(diag(x))) else determinant(x, logarithm = TRUE)$modulus
+  }, numeric(1))
+  
+  
+  # Defining RT_Omega_I_R
+  RTR_new <- unlist(mapply(nodes_new_grow, residuals_terminal_nodes_new_grow,
+                       FUN = function(nodes, resid, x=nodes$Omega_plus_I_inv) {
+                         if(nodes$is_Omega_diag) sum(resid^2 * diag(x)) else crossprod(resid, crossprod(x, resid))
+                       }, SIMPLIFY = FALSE))
+  
+  RTR_old <- unlist(mapply(parent_old_node, residuals_terminal_nodes_old_grow,
+                           FUN = function(nodes, resid, x=nodes$Omega_plus_I_inv) {
+                             if(nodes$is_Omega_diag) sum(resid^2 * diag(x)) else crossprod(resid, crossprod(x, resid))
+                           }, SIMPLIFY = FALSE))
+  
+  
+  
+  # The term R^{T} solve(Omega + I ) 1
+  R_Omega_I_one_new <- unlist(mapply(nodes_new_grow, residuals_terminal_nodes_new_grow,
+                                 FUN = function(nodes, residuals, x=nodes$Omega_plus_I_inv) {
+                                   if(nodes$is_Omega_diag) sum(residuals * diag(x)) else rowSums(crossprod(residuals, x))
+                                 }, SIMPLIFY = FALSE))
+  
+  R_Omega_I_one_old <- unlist(mapply(parent_old_node, residuals_terminal_nodes_old_grow,
+                                     FUN = function(nodes, residuals, x=nodes$Omega_plus_I_inv) {
+                                       if(nodes$is_Omega_diag) sum(residuals * diag(x)) else rowSums(crossprod(residuals, x))
+                                     }, SIMPLIFY = FALSE))
+  
+  log_posterior_new <- -0.5 * sum(log_det_Omega_plus_I_tau_new) - 0.5 * sum(log(S_new) - log(tau_mu)) - 0.5 * sum(RTR_new) + 0.5 * sum(R_Omega_I_one_new^2 / S_new)
+  log_posterior_old <- -0.5 * sum(log_det_Omega_plus_I_tau_old) - 0.5 * sum(log(S_old) - log(tau_mu)) - 0.5 * sum(RTR_old) + 0.5 * sum(R_Omega_I_one_old^2 / S_old)
+  
+  return(list(log_posterior_new = log_posterior_new,
+              S_new = S_new,
+              RTR_new = RTR_new,
+              R_Omega_I_one_new = R_Omega_I_one_new,
+              log_posterior_old = log_posterior_old,
+              S_old = S_old,
+              RTR_old = RTR_old,
+              R_Omega_I_one_old = R_Omega_I_one_old))
+}
+
+
 # Generate mu_j values
 update_mu <- function(tree,
                       x,
@@ -117,7 +205,8 @@ update_residuals <- function(tree, x, nu, phi, residuals, tau, seed = NULL) {
   residuals_terminal_nodes <- lapply(terminal_nodes, function(x) {
     residuals[x$observations_index]
   })
-
+  
+  
   # Getting the \mu_{j} vector
   mu_values <- vapply(terminal_nodes, "[[", numeric(1), "mu")
 
@@ -376,6 +465,10 @@ gp_bart <- function(x, y,
                       shape = a_tau)
   }
 
+   
+  # Creating the likelihood object list
+  likelihood_object <- list()
+  
   # Getting the number of observations
   n <- length(y)
 
@@ -420,7 +513,7 @@ gp_bart <- function(x, y,
   }
 
   # Storage containers
-  store_size <- (n_iter - burn) / thin
+  store_size <- (n_iter - burn) 
   tree_store <- vector("list", store_size)
   tau_store <- c()
   signal_pc_store <- matrix(NA, ncol = number_trees, nrow = store_size)
@@ -479,7 +572,7 @@ gp_bart <- function(x, y,
 
       # Saving the store of the other ones
       curr <- (i - burn) / thin
-      tree_store[[curr]] <- current_trees
+      tree_store[[curr]] <- lapply(current_trees, remove_omega_plus_I_inv)
       tau_store[curr] <- tau
 
       y_hat_store[curr, ] <- if(scale_boolean){
@@ -556,45 +649,58 @@ gp_bart <- function(x, y,
           node_min_size = node_min_size,
           verb = verb, rotation = rotation, theta = theta
         )
+        
+        # Checking if the update tree generated a valid tree, if not skip likelihood calculations
+        if( !identical(current_trees[[j]],new_trees[[j]]) ){
 
-        # Calculating the likelihood of the new tree
-        likelihood_new <- tree_complete_conditional_bart(
-          tree = new_trees[[j]], # Calculate the full conditional
-          residuals_values = current_partial_residuals,
-          x = x, tau_mu = tau_mu, tau = tau
-        )
 
-        # Calculating the likelihood of the old tree
-        likelihood_old <- tree_complete_conditional_bart(
-          tree = current_trees[[j]], # Calculate the full conditional
-          residuals_values = current_partial_residuals,
-          x = x, tau_mu = tau_mu, tau = tau
-        )
-
-        # Extracting only the likelihood
-        l_new <- likelihood_new +
-          tree_prior(
-            tree = new_trees[[j]], # Calculate the tree prior
-            alpha = alpha,
-            beta = beta
+          # Calculating the likelihood of the new tree
+          likelihood_new <- tree_complete_conditional_bart(
+            tree = new_trees[[j]], # Calculate the full conditional
+            residuals_values = current_partial_residuals,
+            x = x, tau_mu = tau_mu, tau = tau
           )
-
-        # Extracting only the likelihood
-        l_old <- likelihood_old +
-          tree_prior(
-            tree = current_trees[[j]], # Calculate the tree prior
-            alpha = alpha,
-            beta = beta
+  
+          # Calculating the likelihood of the old tree
+          likelihood_old <- tree_complete_conditional_bart(
+            tree = current_trees[[j]], # Calculate the full conditional
+            residuals_values = current_partial_residuals,
+            x = x, tau_mu = tau_mu, tau = tau
           )
-
-        # (log) Probability of accept the new proposed tree
-        acceptance <- l_new - l_old
-
-        # If Storage or not based on thin and burn parameters
-        if((i > burn) && ((i %% thin) == 0)) {
-          full_cond_store[curr, j] <- l_old
+  
+          # Extracting only the likelihood
+          l_new <- likelihood_new +
+            tree_prior(
+              tree = new_trees[[j]], # Calculate the tree prior
+              alpha = alpha,
+              beta = beta
+            )
+  
+          # Extracting only the likelihood
+          l_old <- likelihood_old +
+            tree_prior(
+              tree = current_trees[[j]], # Calculate the tree prior
+              alpha = alpha,
+              beta = beta
+            )
+  
+          # (log) Probability of accept the new proposed tree
+          acceptance <- l_new - l_old
+  
+          # If Storage or not based on thin and burn parameters
+          if((i > burn) && ((i %% thin) == 0)) {
+            full_cond_store[curr, j] <- l_old
+          }
+          
+        } else { # Accepting exact same trees
+          # Calculating the likelihood of the new and old tree
+          likelihood_new <- likelihood_old <- tree_complete_conditional_bart(
+            tree = new_trees[[j]], # Calculate the full conditional
+            residuals_values = current_partial_residuals,
+            x = x, tau_mu = tau_mu, tau = tau
+          )
+          acceptance <- 0
         }
-
         # In case of acceptance
 
         if(acceptance > 0 || acceptance > -stats::rexp(1)) {
@@ -611,12 +717,12 @@ gp_bart <- function(x, y,
 
 
           # Storing likelihood matrix objects
-          likelihood_object <- likelihood_new
+          likelihood_object[[j]] <- likelihood_new
 
         } else {
 
           # Storing likelihood matrix objects
-          likelihood_object <- likelihood_old
+          likelihood_object[[j]] <- likelihood_old
 
           # Create a data.frame with the verb and if it was accepted or not
           verb_store[j,"verb"] <- verb
@@ -695,64 +801,96 @@ gp_bart <- function(x, y,
           node_min_size = node_min_size,
           verb = verb, rotation = rotation, theta = theta
         )
-
+        
+        
         # ==================== #
         # Getting the Omega Inverse the current and the future tree
         # ==================== #
 
-        # Getting the inverse for the current terminal nodes
-        current_trees[[j]] <- inverse_omega_plus_I(tree = current_trees[[j]],
-                                                   x = x, tau = tau,
+        # Checking if the previous tree were identitcal or not
+        if(!identical(current_trees[[j]],new_trees[[j]])){
+        
+            # Getting the inverse for the current terminal nodes
+            current_trees[[j]] <- inverse_omega_plus_I(tree = current_trees[[j]],
+                                                       x = x, tau = tau,
+                                                       nu = nu_vector[j],
+                                                       phi = phi_vector[j])
+    
+            # Getting the inverse for the new tree terminal nodes
+            new_trees[[j]] <- inverse_omega_plus_I(tree = new_trees[[j]],
+                                                   x = x,tau = tau,
                                                    nu = nu_vector[j],
                                                    phi = phi_vector[j])
-
-        # Getting the inverse for the new tree terminal nodes
-        new_trees[[j]] <- inverse_omega_plus_I(tree = new_trees[[j]],
-                                               x = x,tau = tau,
-                                               nu = nu_vector[j],
-                                               phi = phi_vector[j])
-
-        # Calculating the likelihood of the new tree
-        likelihood_new <- tree_complete_conditional_gpbart(
-          tree = new_trees[[j]], # Calculate the full conditional
-          residuals = current_partial_residuals,
-          x = x, tau_mu = tau_mu,
-          nu = nu_vector[j], phi = phi_vector[j],
-          number_trees = number_trees
-        )
-
-        # Calculating the likelihood of the old tree
-        likelihood_old <- tree_complete_conditional_gpbart(
-          tree = current_trees[[j]], # Calculate the full conditional
-          residuals = current_partial_residuals,
-          x = x, tau_mu = tau_mu,
-          nu = nu_vector[j], phi = phi_vector[j],
-          number_trees = number_trees
-        )
-
-        # Extracting only the likelihood
-        l_new <- likelihood_new$log_posterior +
-          tree_prior(
-            tree = new_trees[[j]], # Calculate the tree prior
-            alpha = alpha,
-            beta = beta
-          )
-
-        # Extracting only the likelihood
-        l_old <- likelihood_old$log_posterior +
-          tree_prior(
-            tree = current_trees[[j]], # Calculate the tree prior
-            alpha = alpha,
-            beta = beta
-          )
-
-        # (log) Probability of accept the new proposed tree
-        acceptance <- l_new - l_old
-
-        # If Storage or not based on thin and burn parameters
-        if((i > burn) && ((i %% thin) == 0)) {
-          full_cond_store[curr, j] <- l_old
-        }
+    
+            # Calculating the likelihood of the new tree
+            likelihood_new <- tree_complete_conditional_gpbart(
+              tree = new_trees[[j]],  # Calculate the full conditional
+              residuals = current_partial_residuals,
+              x = x, tau_mu = tau_mu,
+              nu = nu_vector[j], phi = phi_vector[j],
+              number_trees = number_trees
+            )
+    
+            # Calculating the likelihood of the old tree
+            likelihood_old <- tree_complete_conditional_gpbart(
+              tree = current_trees[[j]], # Calculate the full conditional
+              residuals = current_partial_residuals,
+              x = x, tau_mu = tau_mu,
+              nu = nu_vector[j], phi = phi_vector[j],
+              number_trees = number_trees
+            )
+    
+            # Extracting only the likelihood
+            l_new <- likelihood_new$log_posterior +
+              tree_prior(
+                tree = new_trees[[j]], # Calculate the tree prior
+                alpha = alpha,
+                beta = beta
+              )
+    
+            # Extracting only the likelihood
+            l_old <- likelihood_old$log_posterior +
+              tree_prior(
+                tree = current_trees[[j]], # Calculate the tree prior
+                alpha = alpha,
+                beta = beta
+              )
+    
+            # (log) Probability of accept the new proposed tree
+            acceptance <- l_new - l_old
+    
+            # If Storage or not based on thin and burn parameters
+            if((i > burn) && ((i %% thin) == 0)) {
+              full_cond_store[curr, j] <- l_old
+            }
+            # In case of them being identical
+        } else {
+          
+          acceptance <- 0.1
+          # Checking if none Omega matrix element were calculated
+          if(is.null(current_trees[[j]][unlist(lapply(current_trees[[j]],
+                                                      function(node) node$terminal==1))][[1]]$Omega_matrix)){
+              # Creating the current tree object
+              # Getting the inverse for the current terminal nodes
+              current_trees[[j]] <- new_trees[[j]] <- inverse_omega_plus_I(tree = current_trees[[j]],
+                                                         x = x, tau = tau,
+                                                         nu = nu_vector[j],
+                                                         phi = phi_vector[j])
+              
+              # Creating the likelihood object
+              likelihood_new <- likelihood_old <- 
+                tree_complete_conditional_gpbart(
+                tree = current_trees[[j]], # Calculate the full conditional
+                residuals = current_partial_residuals,
+                x = x, tau_mu = tau_mu,
+                nu = nu_vector[j], phi = phi_vector[j],
+                number_trees = number_trees
+              )
+            } else{ # Replacing the likelihood_object
+              likelihood_new <- likelihood_old <- likelihood_object[[j]]
+            } # end of the if for null likelihood and current tree 
+          
+          }
 
         if(acceptance > 0 || acceptance > -stats::rexp(1)) { #
           acc_ratio <- acc_ratio + 1
@@ -772,11 +910,11 @@ gp_bart <- function(x, y,
           verb_store[j,"accepted"] <- TRUE
 
           # Storing likelihood matrix objects
-          likelihood_object <- likelihood_new
+          likelihood_object[[j]] <- likelihood_new
 
         } else {
           # Storing likelihood matrix objects
-          likelihood_object <- likelihood_old
+          likelihood_object[[j]] <- likelihood_old
 
           # Create a data.frame with the verb and if it was accepted or not
           verb_store[j,"verb"] <- verb
@@ -790,7 +928,7 @@ gp_bart <- function(x, y,
           tree = current_trees[[j]],
           x = x,
           residuals = current_partial_residuals,
-          likelihood_object = likelihood_object)
+          likelihood_object = likelihood_object[[j]])
 
         # EQUATION FROM SECTION 4
         # ==== Using the prediction from R_star_bar
@@ -805,7 +943,7 @@ gp_bart <- function(x, y,
                                                residuals = current_partial_residuals,
                                                x = x,nu = nu_vector[j],phi = phi_vector[j],
                                                gp_variables = gp_variables,
-                                               likelihood_object = likelihood_object,
+                                               likelihood_object = likelihood_object[[j]],
                                                number_trees = number_trees,
                                                discrete_phi = discrete_phi_boolean,
                                                tau = tau,
@@ -820,7 +958,7 @@ gp_bart <- function(x, y,
             current_trees[[j]] <- mh_update_phi$tree
 
             # Updating the likelihood objects
-            likelihood_object <- mh_update_phi$likelihood_object
+            likelihood_object[[j]] <- mh_update_phi$likelihood_object
 
             # Updating the phi value
             phi_vector[j] <- mh_update_phi$phi_proposal
@@ -833,7 +971,6 @@ gp_bart <- function(x, y,
         current_partial_residuals_matrix[j, ] <- current_partial_residuals
         current_predictions_matrix[j, ] <- predictions[j, ]
 
-        current_trees[[j]] <- remove_omega_plus_I_inv(current_tree_iter = current_trees[[j]])
       } # End of Loop through the trees
     }
 
@@ -1467,8 +1604,9 @@ inverse_omega_plus_I <- function(tree,
 remove_omega_plus_I_inv <- function(current_tree_iter) {
 
   # Selecting terminal nodes names
-  names_terminal_nodes <- names(which(vapply(current_tree_iter, "[[", numeric(1), "terminal") == 1))
-
+  # names_terminal_nodes <- names(which(vapply(current_tree_iter, "[[", numeric(1), "terminal") == 1))
+  names_terminal_nodes <- names(current_tree_iter)
+  
   for(i in names_terminal_nodes) {
     current_tree_iter[[i]]$Omega_plus_I_inv <-
     current_tree_iter[[i]]$distance_matrix <-
