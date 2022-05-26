@@ -2,5 +2,6 @@
 
 S3method(predict,"gpbart_GPBART")
 export(gp_bart)
+export(pi_coverage)
 importFrom(Rcpp,sourceCpp)
 useDynLib(gpbart)

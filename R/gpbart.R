@@ -1789,3 +1789,28 @@ get_train_predictions <- function(gpbart_mod) {
   # Returning the matrix of final predictions
     return(gpbart_sum_pred)
 }
+
+# Calculating a PI coverage
+#' @export
+pi_coverage <- function(y, y_hat_post, sd_post,only_post = FALSE, prob = 0.5){
+  
+    # Getting the number of posterior samples and columns, respect.
+    np <- nrow(y_hat_post)
+    nobs <- ncol(y_hat_post)
+  
+    # Only post matrix
+    if(only_post){
+      post_draw <- y_hat_post
+    } else {
+      post_draw <- y_hat_post + replicate(sd_post,n = nobs)*matrix(stats::rnorm(n = np*nobs),
+                                                                 nrow = np)
+    }
+    
+    # CI boundaries
+    low_ci <- apply(post_draw,2,function(x){stats::quantile(x,probs = prob/2)})
+    up_ci <- apply(post_draw,2,function(x){stats::quantile(x,probs = 1-prob/2)})
+  
+    pi_cov <- sum((y<=up_ci) & (y>=low_ci))/length(y)
+  
+  return(pi_cov)
+}
