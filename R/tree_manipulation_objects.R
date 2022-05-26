@@ -810,3 +810,72 @@ update_tree_verb_bart <- function(tree, x, node_min_size, verb, rotation = TRUE,
   )
     return(updated_tree)
 }
+
+# Calculate transition factor
+log_transition_prob <- function(current_tree, new_tree, verb){
+  
+  # Prob_grow
+  p_grow <- 0.25
+  p_prune <- 0.25
+  
+  if(length(current_tree)==1){
+    return(0)
+  }
+  
+  # Get the values
+  return(switch(verb,
+                grow = (log(p_prune)+log(get_leaves(current_tree)))-(log(get_branches(new_tree))+ log(p_grow)),
+                prune = (log(p_grow)+log(get_branches(current_tree)))-(log(get_leaves(new_tree))+ log(p_prune)),
+                change = 0,
+                swap = 0 ))
+}
+
+
+# Getting the number of terminal nodes and the parent nodes
+get_leaves <- function(tree){
+  
+  # Getting the terminal nodes
+  terminal_nodes <- names(tree[vapply(tree, function(x) {
+    (x$terminal == 1)
+  }, logical(1))])
+  
+  
+  # Selecting the terminal nodes
+  n_leaves <- length(terminal_nodes)
+  
+  # Returning the leaves
+  return(n_leaves)
+}
+
+# Getting branches that are not grand parents
+get_branches <- function(tree){
+  
+  # Selecting the terminal nodes
+  branches_with_leaves <-(names(tree[vapply(tree, function(x) {
+    (x$terminal == 0)
+  }, logical(1))]))
+  
+  # Selecting parent nodes
+  parent_nodes <- unique(vapply(tree, "[[", numeric(1), "parent_node"))
+  parent_nodes <- parent_nodes[!is.na(parent_nodes)]
+  
+  # Choose the pairs nodes
+  pairs_terminal_nodes <- t(sapply(parent_nodes, function(x) {
+    vapply(tree, "[[", numeric(1), "parent_node") == x
+  }))
+  
+  # Names of terminal nodes
+  names_pairs_terminal_nodes <- apply(pairs_terminal_nodes, 1, function(x) {
+    names(which(unlist(x)))
+  })
+  
+  # Getting BOOLEAN of the pairs of ONLY terminal nodes
+  terminal_both_nodes <- apply(names_pairs_terminal_nodes, 2, function(x) {
+    all(vapply(tree[x], "[[", numeric(1), "terminal") == 1)
+  })
+  
+  # Returning the number of branches of non-grandparents
+  n_branches <- length(parent_nodes[terminal_both_nodes])
+  
+  return(n_branches)
+}
