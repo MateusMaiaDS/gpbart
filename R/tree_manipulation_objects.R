@@ -828,6 +828,7 @@ log_transition_prob <- function(current_tree, new_tree, verb){
                 grow_projection = (log(p_prune)+log(get_leaves(current_tree)))-(log(get_branches(new_tree))+ log(p_grow)),
                 prune = (log(p_grow)+log(get_branches(current_tree)))-(log(get_leaves(new_tree))+ log(p_prune)),
                 change = 0,
+                change_projection = 0,
                 swap = 0 ))
 }
 
