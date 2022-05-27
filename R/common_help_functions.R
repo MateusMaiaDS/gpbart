@@ -163,3 +163,15 @@ PD_chol  <- function(x, ...) tryCatch(chol(x, ...), error=function(e) {
       return(chol(x + evec %*% tcrossprod(diag(pmax.int(1e-8, 2 * max(abs(eval)) * d * .Machine$double.eps - eval), d), evec), ...))
   }
 )
+
+# Calculating CRPS from (https://arxiv.org/pdf/1709.04743.pdf)
+#' @export
+crps <- function(y,means,sds){
+  
+  # scaling the observed y
+  z <- (y-means)/sds
+  
+  crps_vector <- sds*(z*(2*stats::pnorm(q = z,mean = 0,sd = 1)-1) + 2*stats::dnorm(x = z,mean = 0,sd = 1) - 1/(sqrt(pi)) )
+  
+  return(list(CRPS = mean(crps_vector), crps = crps_vector))
+}
