@@ -244,12 +244,10 @@ update_residuals <- function(tree, x, nu, phi, residuals, tau, seed = NULL) {
                                  # Getting the Omega value
                                  if(omega_is_diag) {
                                    diag(omega) - diag(omega)^2 * diag(omega_i_inv) ### Old version
-                                   # diag(omega) - diag(omega)^2 * diag(omega_i_inv) + diag(tau^(-1),nrow = nrow(omega))
-                                   
+
                                  } else {
                                    omega - crossprod(omega, crossprod(omega_i_inv, omega)) ### Old version
-                                   # (omega - crossprod(omega, crossprod(omega_i_inv, omega))) + diag(tau^(-1),nrow = nrow(omega))
-                                   
+
                                  }
                                }, SIMPLIFY = FALSE)
 
