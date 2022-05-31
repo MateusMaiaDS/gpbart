@@ -20,6 +20,7 @@ gp_bart(
   theta = NULL,
   seed = NULL,
   scale_boolean = TRUE,
+  nu_vector = NULL,
   a_tau = 3,
   d_tau = 1,
   discrete_phi_boolean = FALSE,

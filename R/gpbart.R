@@ -352,7 +352,7 @@ gp_bart <- function(x, y,
                         seed = NULL, # Alpha vector values from the Dirichlet prior
                         scale_boolean = TRUE,
                         # This will be defining the nu the default value
-                        nu_vector = NULL
+                        nu_vector = NULL,
                         a_tau = 3, # Prior from a_v_ratio gamma
                         d_tau = 1, # Prior from d_v_ratio gamma,
                         discrete_phi_boolean = FALSE,
