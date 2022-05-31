@@ -351,6 +351,8 @@ gp_bart <- function(x, y,
                         theta = NULL, # If theta is NULL, then the rotation angle will be randomly selected
                         seed = NULL, # Alpha vector values from the Dirichlet prior
                         scale_boolean = TRUE,
+                        # This will be defining the nu the default value
+                        nu_vector = NULL
                         a_tau = 3, # Prior from a_v_ratio gamma
                         d_tau = 1, # Prior from d_v_ratio gamma,
                         discrete_phi_boolean = FALSE,
@@ -364,8 +366,6 @@ gp_bart <- function(x, y,
   if(node_min_size>=nrow(x)){
     stop("Node min size is greater than the number of observation")
   }
-  # This will be defining the nu the default value
-  nu_vector = NULL
 
   # This parameter is a "scale paramter" to the GP
   phi_vector = rep(0.1 / (sqrt(number_trees)), number_trees)
@@ -429,7 +429,7 @@ gp_bart <- function(x, y,
     # Defing the nu vector if not in default
     if(is.null(nu_vector)) {
       # Defining the nu value values on the maximum and minimum
-      nu_vector <- rep(4 * number_trees * K_bart^2/(1 - kappa), number_trees)
+      nu_vector <- rep((4 * number_trees * K_bart^2)/(1 - kappa), number_trees)
     } else if(length(nu_vector) == 1) {
       nu_vector <- rep(nu_vector, number_trees)
     }
@@ -451,7 +451,7 @@ gp_bart <- function(x, y,
 
     if(is.null(nu_vector)) {
       # Defining the nu value values on the maximum and minimum
-      nu_vector <- rep(4 * number_trees * K_bart^2/((1 - kappa) * (max(y_scale) - min(y_scale))^2), number_trees)
+      nu_vector <- rep((4 * number_trees * K_bart^2)/((1 - kappa) * (max(y_scale) - min(y_scale))^2), number_trees)
     } else if(length(nu_vector) == 1) {
       nu_vector <- rep(nu_vector, number_trees)
     }
