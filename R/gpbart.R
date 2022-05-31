@@ -421,13 +421,6 @@ gp_bart <- function(x, y,
   a_min <- min(y)
   b_max <- max(y)
   
-  # Getting the optimal tau values
-  d_tau <- rate_tau(x = x,
-                    y = y,
-                    prob = prob_tau,
-                    shape = a_tau)
-  
-  
   # Scale values
   if(scale_boolean) {
     # Normalizing y
@@ -444,6 +437,12 @@ gp_bart <- function(x, y,
     # Calculating \tau_{\mu} based on the scale of y
     tau_mu_bart <- (4 * number_trees * K_bart^2)
     tau_mu_gpbart <- tau_mu_bart/kappa
+
+    # Getting the optimal tau values
+    d_tau <- rate_tau(x = x,
+                      y = y_scale,
+                      prob = prob_tau,
+                      shape = a_tau)
 
   } else {
 
