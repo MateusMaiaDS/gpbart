@@ -51,7 +51,7 @@ two_d_sim_two_node_gp_sum_each_tree <- function(n, # Number of observations
   # -- Sampling for the first node 
   
   # Defining the variance
-  var_tree_one_node_one <-  ((tau1[1])^-1)*omega_function(x = x[x[,1] < x[,2], ,drop =FALSE],
+  var_tree_one_node_one <- omega_function(x = x[x[,1] < x[,2], ,drop =FALSE],
                                                           nu = nu, 
                                                           phi = phi) 
   # Defining the mean
@@ -67,7 +67,7 @@ two_d_sim_two_node_gp_sum_each_tree <- function(n, # Number of observations
   # -- Sampling for the second node
   
   # Defining the variance
-  var_tree_one_node_two <-  ((tau2[1])^-1)*omega_function(x = x[x[,1] >= x[,2], ,drop =FALSE],
+  var_tree_one_node_two <-  omega_function(x = x[x[,1] >= x[,2], ,drop =FALSE],
                                                           nu = nu, 
                                                           phi = phi)
   # Defining the mean
@@ -82,7 +82,7 @@ two_d_sim_two_node_gp_sum_each_tree <- function(n, # Number of observations
   # -- Sampling for the first node 
   
   # Defining the variance
-  var_tree_two_node_one <-  ((tau1[2])^-1)*omega_function(x = x[x[,1] < - x[,2], ,drop =FALSE],
+  var_tree_two_node_one <-  omega_function(x = x[x[,1] < - x[,2], ,drop =FALSE],
                                                           nu = nu, 
                                                           phi = phi)
   # Defining the mean
@@ -98,7 +98,7 @@ two_d_sim_two_node_gp_sum_each_tree <- function(n, # Number of observations
   # -- Sampling for the second node
   
   # Defining the variance
-  var_tree_two_node_two <-  ((tau2[2])^-1)*omega_function(x = x[x[,1] >= -x[,2], ,drop =FALSE],
+  var_tree_two_node_two <-  omega_function(x = x[x[,1] >= -x[,2], ,drop =FALSE],
                                                           nu = nu, 
                                                           phi = phi) 
   mean_tree_two_node_two <- rep(mu2[2],tree_two_n2)
@@ -112,7 +112,7 @@ two_d_sim_two_node_gp_sum_each_tree <- function(n, # Number of observations
   # -- Sampling for the first node 
   
   # Defining the variance
-  var_tree_three_node_one <-  ((tau1[3])^-1)*omega_function(x = x[x[,1] < 0, ,drop =FALSE],
+  var_tree_three_node_one <-  omega_function(x = x[x[,1] < 0, ,drop =FALSE],
                                                             nu = nu, 
                                                             phi = phi) 
   # Defining the mean
@@ -128,7 +128,7 @@ two_d_sim_two_node_gp_sum_each_tree <- function(n, # Number of observations
   # -- Sampling for the second node
   
   # Defining the variance
-  var_tree_three_node_two <-  ((tau2[3])^-1)*omega_function(x = x[x[,1] >= 0, ,drop =FALSE],
+  var_tree_three_node_two <-  omega_function(x = x[x[,1] >= 0, ,drop =FALSE],
                                                             nu = nu, 
                                                             phi = phi) 
   # Defining the mean
