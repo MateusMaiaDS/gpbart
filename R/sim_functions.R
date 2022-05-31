@@ -138,7 +138,7 @@ two_d_sim_two_node_gp_sum_each_tree <- function(n, # Number of observations
                                                         Sigma = var_tree_three_node_two)
   
   
-  y <- y + rnorm(n = n,mean = 0,sd = tau^(-1/2))
+  y <- y + rnorm(n = length(y),mean = 0,sd = tau^(-1/2))
   
   return(as.matrix(data.frame(x, y = y)))
   
