@@ -18,7 +18,8 @@ Imports:
     mvtnorm,
     stats,
     stringr,
-    Rcpp
+    Rcpp,
+    MASS
 Roxygen: list(markdown = TRUE)
 RoxygenNote: 7.1.2
 LinkingTo: 
