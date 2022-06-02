@@ -140,7 +140,8 @@ unnormalize_bart <- function(z, a, b) {
   y <- (b - a) * (z + 0.5) + a
     return(y)
 }
-
+# Calculating RMSE
+#' @export
 rmse <- function(obs, pred) {
   return(sqrt(mean((obs - pred)^2)))
 }

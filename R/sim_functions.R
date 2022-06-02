@@ -31,8 +31,8 @@ two_d_sim_two_node_gp_sum_each_tree <- function(n, # Number of observations
   
   # Generating the x axis
   if(unif_sample){
-    x <- expand.grid(lat = runif(n = round(sqrt(n)),min = -10,max = 10),
-                     lon = runif(n = round(sqrt(n)),min = -10,max = 10))
+    x <- expand.grid(lat = stats::runif(n = round(sqrt(n)),min = -10,max = 10),
+                     lon = stats::runif(n = round(sqrt(n)),min = -10,max = 10))
   } else {
     x <- expand.grid(lat = seq(-10,10,length.out = round(sqrt(n))),
                      lon = seq(-10,10,length.out = round(sqrt(n))))

@@ -331,6 +331,7 @@ get_prediction <- function(trees, x, single_tree = FALSE) {
 #' @param d_tau Rate parameter from \eqn{\tau} prior
 #' @param discrete_phi_boolean Boolean to decide if it will be used a discrete grid for \eqn{\phi} proposals
 #' @param x_scale Boolean to scale x or not
+#' @param nu_vector A constant vector of length of number of trees with the \eqn{\nu} constant value
 #' @param gp_variables Covariates used to build the covariance matrix from GP
 #' @param K_bart Prior parameter from \eqn{\tau_{\mu}}
 #' @param prob_tau Prior parameter from \eqn{\tau}

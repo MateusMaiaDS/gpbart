@@ -64,6 +64,8 @@ gp_bart(
 
 \item{scale_boolean}{Boolean to scale or not the response \eqn{y}}
 
+\item{nu_vector}{A constant vector of length of number of trees with the \eqn{\nu} constant value}
+
 \item{a_tau}{Scale parameter from \eqn{\tau} prior}
 
 \item{d_tau}{Rate parameter from \eqn{\tau} prior}
