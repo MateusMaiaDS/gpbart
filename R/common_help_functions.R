@@ -146,6 +146,9 @@ rmse <- function(obs, pred) {
 }
 
 rMVN_var <- function(mean, Sigma) {
+  if(length(mean) == 1){
+    mean <- rep(mean,nrow(Sigma))
+  }
   if(is.matrix(Sigma)) {
     drop(mean + crossprod(PD_chol(Sigma), stats::rnorm(length(mean))))
   } else {

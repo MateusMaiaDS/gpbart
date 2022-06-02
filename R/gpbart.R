@@ -212,7 +212,10 @@ update_residuals <- function(tree, x, nu, phi, residuals, tau, seed = NULL) {
 
   # Calculating Omega matrix
   Omega_matrix <- lapply(terminal_nodes, "[[", "Omega_matrix")
-
+  
+  # Getting Omega_matrix plust tau
+  Omega_matrix_plus_tau <- lapply(Omega_matrix, function(x) { x + diag(tau^-1,nrow = nrow(x))})
+  
   # Checking if diagonal
   is_Omega_diag <- lapply(terminal_nodes, "[[", "is_Omega_diag")
 
@@ -246,14 +249,15 @@ update_residuals <- function(tree, x, nu, phi, residuals, tau, seed = NULL) {
                                    diag(omega) - diag(omega)^2 * diag(omega_i_inv) ### Old version
 
                                  } else {
-                                   omega - crossprod(omega, crossprod(omega_i_inv, omega)) ### Old version
+                                   omega - crossprod(omega, crossprod(omega_i_inv, omega))  ### Old version
 
                                  }
                                }, SIMPLIFY = FALSE)
 
   # Calculating g_mean posterior
   residuals_sample <- mapply(FUN=rMVN_var, residuals_mean, residuals_variance, SIMPLIFY = FALSE)
-
+  # residuals_sample <- mapply(FUN=rMVN_var, residuals_terminal_nodes, Omega_matrix_plus_tau, SIMPLIFY = FALSE)
+  
   # Adding the mu values calculated
   for(i in seq_along(terminal_nodes)) {
     # Saving g
