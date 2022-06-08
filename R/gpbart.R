@@ -261,8 +261,8 @@ update_residuals <- function(tree, x, nu, phi, residuals, tau, seed = NULL) {
   # Adding the mu values calculated
   for(i in seq_along(terminal_nodes)) {
     # Saving g
-    # residuals_new[terminal_nodes[[i]]$observations_index] <- residuals_sample[[i]]
-    residuals_new[terminal_nodes[[i]]$observations_index] <- residuals_mean[[i]]
+    residuals_new[terminal_nodes[[i]]$observations_index] <- residuals_sample[[i]]
+    # residuals_new[terminal_nodes[[i]]$observations_index] <- residuals_mean[[i]]
     
     
   }
