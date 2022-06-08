@@ -1326,12 +1326,12 @@ predict_gaussian_from_multiple_trees <- function(multiple_trees, # A list of tre
         if(isFALSE(pred_bart_only)) {
 
           # Getting the GP from a terminal node
-          gp_process <- gp_main(
+          gp_process <- gp_main_sample(
             x_train = x_current_node, distance_matrix_train = distance_matrix_current_node,
             y_train = matrix((partial_residuals[m,new_tree[[list_nodes[[i]]]]$observations_index]) - new_tree[[list_nodes[[i]]]]$mu,
                               nrow = nrow(x_current_node)),
             x_star = x_star, tau = tau,
-            nu = nu, phi = phi,get_cov_star = FALSE
+            nu = nu, phi = phi,get_cov_star = TRUE
           )
 
           # Creating the mu vector

@@ -13,7 +13,7 @@ gp_main <- function(x_train, y_train, x_star, tau, phi, nu, distance_matrix_trai
   n_train <- nrow(x_train)
   K_y <- PD_chol(kernel_function(squared_distance_matrix = distance_matrix_train,
                          nu = nu,
-                         phi = phi))# + diag(x = 1e-12, nrow = n_train)
+                         phi = phi)) + diag(x = 1/tau, nrow = n_train)
   K_diag <- is_diag_matrix(K_y)
   K_star <- kernel_function(squared_distance_matrix = distance_matrix_K_star,
                             nu = nu, phi = phi)
@@ -34,7 +34,9 @@ gp_main <- function(x_train, y_train, x_star, tau, phi, nu, distance_matrix_trai
                                    nu = nu, phi = phi) + diag(x = 1/tau, nrow = nrow(x_star))
     v <- if(K_diag) K_star/L else backsolve(L, K_star, transpose = TRUE, k = n_train)
     cov_star <- K_star_star - crossprod(v)
+    # results <- list(mu_pred = mu_star, cov_pred = cov_star)
     results <- list(mu_pred = mu_star, cov_pred = cov_star)
+    
   } else {
     results <- list(mu_pred = mu_star)
   }
@@ -78,7 +80,9 @@ gp_main_sample <- function(x_train, y_train, x_star, tau, phi, nu, distance_matr
     
     residuals_sample <- mapply(FUN=rMVN_var, mu_star, cov_star, SIMPLIFY = FALSE)
     
-    results <- list(mu_pred = residuals_sample, cov_pred = cov_star)
+    # results <- list(mu_pred = residuals_sample, cov_pred = cov_star)
+    results <- list(mu_pred = residuals_sample)
+    
   } else {
     results <- list(mu_pred = mu_star)
   }
