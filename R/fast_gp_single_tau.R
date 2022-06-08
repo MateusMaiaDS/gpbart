@@ -13,7 +13,7 @@ gp_main <- function(x_train, y_train, x_star, tau, phi, nu, distance_matrix_trai
   n_train <- nrow(x_train)
   K_y <- kernel_function(squared_distance_matrix = distance_matrix_train,
                          nu = nu,
-                         phi = phi) + diag(x = 1e-18, nrow = n_train)
+                         phi = phi) + diag(x = 1e-12, nrow = n_train)
   K_diag <- is_diag_matrix(K_y)
   K_star <- kernel_function(squared_distance_matrix = distance_matrix_K_star,
                             nu = nu, phi = phi)
