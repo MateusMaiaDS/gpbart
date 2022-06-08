@@ -261,7 +261,10 @@ update_residuals <- function(tree, x, nu, phi, residuals, tau, seed = NULL) {
   # Adding the mu values calculated
   for(i in seq_along(terminal_nodes)) {
     # Saving g
-    residuals_new[terminal_nodes[[i]]$observations_index] <- residuals_sample[[i]]
+    # residuals_new[terminal_nodes[[i]]$observations_index] <- residuals_sample[[i]]
+    residuals_new[terminal_nodes[[i]]$observations_index] <- residuals_mean[[i]]
+    
+    
   }
     return(residuals_new)
 }
@@ -1824,7 +1827,9 @@ pi_coverage <- function(y, y_hat_post, sd_post,only_post = FALSE, prob = 0.5,n_m
     }
   }
   
-  post_draw<- do.call(rbind,full_post_draw)
+  if(!only_post){
+    post_draw<- do.call(rbind,full_post_draw)
+  }
   
   # CI boundaries
   low_ci <- apply(post_draw,2,function(x){stats::quantile(x,probs = prob/2)})

@@ -72,13 +72,22 @@ naive_tau <- function(x, y) {
   # Getting the value from p
   p <- ifelse(is.null(ncol(x)), 1, ncol(x))
   
+  # Adjusting the df
+  df <- data.frame(x,y) 
+  colnames(df)<- c(colnames(x),"y")
+  
   # Naive lm_mod 
-  lm_mod <- stats::lm(formula = y ~ ., data =  data.frame(y, x))
+  lm_mod <- stats::lm(formula = y ~ ., data =  df)
   
-  sigma <- sqrt(sum((lm_mod$residuals)^2)/(n - p))
+  # Getting sigma
+  sigma <- stats::sigma(lm_mod)
   
-  tau <- 1/sigma^2
-    return(tau)
+  # Using naive tau
+  # sigma <- sd(y)
+  
+  # Getting \tau back
+  tau <- sigma^(-2)
+  return(tau)
 }
 
 # Naive sigma_estimation
@@ -94,7 +103,8 @@ naive_sigma <- function(x,y){
   lm_mod <- stats::lm(formula = y ~ ., data =  data.frame(y,x))
   
   sigma <- sqrt(sum((lm_mod$residuals)^2)/(n - p))
-    return(sigma)
+  sigma <- sd(y)
+  return(sigma)
 }
 
 # Return rate parameter from the tau prior
@@ -106,6 +116,7 @@ rate_tau <- function(x, # X value
   tau_ols <- naive_tau(x = x,
                        y = y)
   
+  print(tau_ols)
   # Getting the root
   min_root <-  try(stats::uniroot(f = zero_tau_prob, interval = c(1e-2, 100),
                            naive_tau_value = tau_ols,
