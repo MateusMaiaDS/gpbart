@@ -81,7 +81,7 @@ gp_main_sample <- function(x_train, y_train, x_star, tau, phi, nu, distance_matr
     residuals_sample <- mapply(FUN=rMVN_var, mu_star, cov_star, SIMPLIFY = FALSE)
     
     # results <- list(mu_pred = residuals_sample, cov_pred = cov_star)
-    results <- list(mu_pred = residuals_sample)
+    results <- list(mu_pred = unlist(residuals_sample))
     
   } else {
     results <- list(mu_pred = mu_star)
