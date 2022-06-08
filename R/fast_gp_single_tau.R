@@ -19,13 +19,13 @@ gp_main <- function(x_train, y_train, x_star, tau, phi, nu, distance_matrix_trai
                             nu = nu, phi = phi)
   
   # Calculating \alpha
-  if(K_diag) {
-    L <- diag(K_y)
-    alpha <- y_train/L
-  } else {
+  # if(K_diag) {
+  #   L <- diag(K_y)
+  #   alpha <- y_train/L
+  # } else {
     L <- chol(K_y)
     alpha <- backsolve(L, backsolve(L, y_train, transpose = TRUE, k = n_train), k = n_train)
-  }
+  # }
   mu_star <- crossprod(K_star, alpha)
   
   # Here the abs is because the smallest values that are coming from here are due to numerical approximations.
