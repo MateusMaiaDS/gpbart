@@ -103,7 +103,7 @@ naive_sigma <- function(x,y){
   lm_mod <- stats::lm(formula = y ~ ., data =  data.frame(y,x))
   
   sigma <- sqrt(sum((lm_mod$residuals)^2)/(n - p))
-  sigma <- sd(y)
+  sigma <- stats::sd(y)
   return(sigma)
 }
 
