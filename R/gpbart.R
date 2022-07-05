@@ -1369,6 +1369,7 @@ count_terminal_nodes <- function(tree) {
 #' @rdname gpbart_GPBART The fitted gpBART model
 #' @param x_test the test set
 #' @param pred_bart_only boolean if there are only bart predictions
+#' @param bool_cov_star checking if will sample or not
 #' @param type select the prediction outputs among 'c("all", "mean","median"))'
 #' @param ... other parameters
 #' @usage
