@@ -1331,7 +1331,7 @@ predict_gaussian_from_multiple_trees <- function(multiple_trees, # A list of tre
             y_train = matrix((partial_residuals[m,new_tree[[list_nodes[[i]]]]$observations_index]) - new_tree[[list_nodes[[i]]]]$mu,
                               nrow = nrow(x_current_node)),
             x_star = x_star, tau = tau,
-            nu = nu, phi = phi,get_cov_star = TRUE
+            nu = nu, phi = phi,get_cov_star = FALSE
           )
 
           # Creating the mu vector
