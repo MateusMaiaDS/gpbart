@@ -1380,7 +1380,7 @@ count_terminal_nodes <- function(tree) {
 #' @export
 predict.gpbart_GPBART <- function(object, x_test, 
                                   pred_bart_only = FALSE,
-                                  pred_cov_star = FALSE,
+                                  bool_cov_star = FALSE,
                                   type = c("all","mean","median"),...) { # type argument Can be "all", "mean" or "meadian"
 
   # Adjusting the type
@@ -1430,7 +1430,7 @@ predict.gpbart_GPBART <- function(object, x_test,
       phi_vector = object$phi_store[i, ],
       nu_vector = object$nu_vector,
       tau = object$tau_store[[i]], pred_bart_only = pred_bart_only,
-      pred_cov_star = pred_cov_star
+      bool_cov_star = bool_cov_star
     )
 
     # Iterating over all trees (test)
