@@ -1223,8 +1223,8 @@ predict_gaussian_from_multiple_trees <- function(multiple_trees, # A list of tre
                                                  x_new, # The x that will be predicted
                                                  partial_residuals, # The partial_residual values
                                                  tau,
-                                                 pred_bart_only # Boolean argument to predict a BART object
-                                                 bool_cov_star # Checking if it will sample or not) {
+                                                 pred_bart_only, # Boolean argument to predict a BART object
+                                                 bool_cov_star){ # Checking if it will sample or not) {
   # Defining objects
   y_pred_final <-
 
@@ -1376,6 +1376,7 @@ count_terminal_nodes <- function(tree) {
 #' \method{predict}{gpbart_GPBART}(object,
 #'         x_test,
 #'         pred_bart_only = FALSE,
+#'         bool_cov_star =  FALSE,
 #'         type = c('all', 'median', 'mean'),
 #'         ...)
 #' @export
