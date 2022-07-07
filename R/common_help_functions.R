@@ -2,19 +2,19 @@
 # other common functions related to tree structures are found in
 
 tree_prior <- function(tree, alpha, beta) {
-  
+
   # Selecting terminal nodes names
   names_terminal_nodes <- names(which(vapply(tree, "[[", numeric(1), "terminal") == 1))
-  
+
   # Selecting internal nodes names
   names_internal_nodes <- names(which(vapply(tree, "[[", numeric(1), "terminal") == 0))
-  
+
   # Selecting the depth of the terminal nodes
   depth_terminal <- vapply(tree[names_terminal_nodes], "[[", numeric(1), "depth_node")
-  
+
   # Selecting the depth of the internal nodes
   depth_internal <- vapply(tree[names_internal_nodes], "[[", numeric(1), "depth_node")
-  
+
   # Case for stump (No internal node)
   if(length(depth_internal) == 0) {
     log_p <- log(1 - alpha)
@@ -26,38 +26,75 @@ tree_prior <- function(tree, alpha, beta) {
 }
 
 # Update tau_j values
-update_tau <- function(x, 
+update_tau <- function(x,
                        y,
                        a_tau,
-                       d_tau, 
+                       d_tau,
                        predictions) {
-  
+
   # Calculating the values of a and d
   n <- nrow(x)
-  
+
   # Getting the shape parameter from the posterior
   shape_tau_post <- 0.5 * n + a_tau
-  
+
   # Getting the ratio parameter
   rate_tau_post <- 0.5 * crossprod(y - predictions) + d_tau
-  
+
   # Updating the \tau
   tau_sample <- stats::rgamma(n = 1, shape = shape_tau_post, rate = rate_tau_post)
     return(tau_sample)
 }
 
+dh_cauchy <- function(x,location,sigma){
+
+  if(x>=location){
+    return ((2/(pi*sigma))*(1/(1+((x-location)^2)/(sigma^2))))
+  } else
+    return(0)
+}
+
+# Check the appendix of Linero SoftBART for more details
+update_tau_linero <- function(x,
+                              y,
+                              y_hat,
+                              curr_tau){
+  # Getting number of observations
+  n <- length(y)
+  # Calculating current sigma
+  curr_sigma <- curr_tau^(-1/2)
+
+  sigma_naive <- naive_sigma(x = x,y = y)
+
+  proposal_tau <- rgamma(n = 1,shape = 0.5*n+1,rate = 0.5*crossprod( (y-y_hat) ))
+
+  proposal_sigma <- proposal_tau^(-1/2)
+
+  acceptance <- exp(log(dh_cauchy(x = proposal_sigma,location = 0,sigma = sigma_naive)) +
+                3*log(proposal_sigma) -
+                log(dh_cauchy(x = curr_sigma,location = 0,sigma = sigma_naive)) -
+                3*log(curr_sigma))
+
+  if(runif(n = 1)<acceptance){
+    return(proposal_sigma^(-2))
+  } else {
+    return(curr_tau)
+  }
+
+}
+
 # Functions to find the zero for tau
 zero_tau_prob <- function(x, naive_tau_value, prob, shape) {
-  
-  # Find the zero to the function P(tau < tau_ols) = 0.1, for a defined   
+
+  # Find the zero to the function P(tau < tau_ols) = 0.1, for a defined
   return(stats::pgamma(naive_tau_value,
                 shape = shape,
                 scale = x) - (1 - prob))
 }
 
 zero_tau_prob_squared <- function(x, naive_tau_value, prob, shape) {
-  
-  # Find the zero to the function P(tau < tau_ols) = 0.1, for a defined   
+
+  # Find the zero to the function P(tau < tau_ols) = 0.1, for a defined
   return((stats::pgamma(naive_tau_value,
                  shape = shape,
                  scale = x) - (1 - prob))^2)
@@ -65,26 +102,26 @@ zero_tau_prob_squared <- function(x, naive_tau_value, prob, shape) {
 
 # Naive tau_estimation
 naive_tau <- function(x, y) {
-  
+
   # Getting the valus from n and p
   n <- length(y)
-  
+
   # Getting the value from p
   p <- ifelse(is.null(ncol(x)), 1, ncol(x))
-  
+
   # Adjusting the df
-  df <- data.frame(x,y) 
+  df <- data.frame(x,y)
   colnames(df)<- c(colnames(x),"y")
-  
-  # Naive lm_mod 
+
+  # Naive lm_mod
   lm_mod <- stats::lm(formula = y ~ ., data =  df)
-  
+
   # Getting sigma
   sigma <- stats::sigma(lm_mod)
-  
+
   # Using naive tau
   # sigma <- sd(y)
-  
+
   # Getting \tau back
   tau <- sigma^(-2)
   return(tau)
@@ -92,18 +129,20 @@ naive_tau <- function(x, y) {
 
 # Naive sigma_estimation
 naive_sigma <- function(x,y){
-  
+
   # Getting the valus from n and p
   n <- length(y)
-  
+
   # Getting the value from p
   p <- ifelse(is.null(ncol(x)), 1, ncol(x))
-  
-  # Naive lm_mod 
+
+  # Naive lm_mod
   lm_mod <- stats::lm(formula = y ~ ., data =  data.frame(y,x))
-  
-  sigma <- sqrt(sum((lm_mod$residuals)^2)/(n - p))
-  sigma <- stats::sd(y)
+
+  # sigma <- sqrt(sum((lm_mod$residuals)^2)/(n - p))
+  # sigma <- stats::sd(y)
+  sigma <- stats::sigma(lm_mod)
+
   return(sigma)
 }
 
@@ -115,12 +154,12 @@ rate_tau <- function(x, # X value
   # Find the tau_ols
   tau_ols <- naive_tau(x = x,
                        y = y)
-  
+
   # Getting the root
   min_root <-  try(stats::uniroot(f = zero_tau_prob, interval = c(1e-2, 100),
                            naive_tau_value = tau_ols,
                            prob = prob, shape = shape)$root, silent = TRUE)
-  
+
   if(inherits(min_root, "try-error")) {
     # Verifying the squared version
     min_root <- stats::optim(par = stats::runif(1), fn = zero_tau_prob_squared,
@@ -133,14 +172,14 @@ rate_tau <- function(x, # X value
 
 # Normalize BART function (Same way as theOdds code)
 normalize_bart <- function(y) {
-  
+
   # Defining the a and b
   a <- min(y)
   b <- max(y)
-  
+
   # This will normalize y between -0.5 and 0.5
   y  <- (y - a)/(b - a) - 0.5
-    return(y) 
+    return(y)
 }
 
 # Now a function to return everything back to the normal scale
@@ -181,11 +220,11 @@ PD_chol  <- function(x, ...) tryCatch(chol(x, ...), error=function(e) {
 # Calculating CRPS from (https://arxiv.org/pdf/1709.04743.pdf)
 #' @export
 crps <- function(y,means,sds){
-  
+
   # scaling the observed y
   z <- (y-means)/sds
-  
+
   crps_vector <- sds*(z*(2*stats::pnorm(q = z,mean = 0,sd = 1)-1) + 2*stats::dnorm(x = z,mean = 0,sd = 1) - 1/(sqrt(pi)) )
-  
+
   return(list(CRPS = mean(crps_vector), crps = crps_vector))
 }

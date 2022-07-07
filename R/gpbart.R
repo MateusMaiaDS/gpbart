@@ -59,79 +59,79 @@ tree_complete_conditional_gpbart <- function(tree, x, residuals, nu = 1, phi = 1
 #                                                   x, residuals, nu = 1, phi = 1,
 #                                              tau_mu,
 #                                              number_trees = number_trees) {
-#   
+#
 #   # Selecting the terminal nodes
 #   old_terminal_nodes <- old_tree[names(which(vapply(old_tree, "[[", numeric(1), "terminal") == 1))]
 #   new_terminal_nodes <- new_tree[names(which(vapply(new_tree, "[[", numeric(1), "terminal") == 1))]
-#   
+#
 #   # New nodes
 #   nodes_new_grow <- new_terminal_nodes[!(names(new_terminal_nodes) %in% names(old_terminal_nodes))]
 #   parent_old_node <- old_terminal_nodes[paste0("node_",nodes_which_grow[[1]]$parent_node)]
-#   
+#
 #   # Number of nodes
 #   n_node_new <- length(nodes_new_grow)
-#   
+#
 #   # Picking each node size
 #   nodes_size_new <- vapply(nodes_new_grow, function(x) {
 #     length(x$observations_index)
 #   }, numeric(1))
-#   
+#
 #   # Residuals terminal nodes
 #   residuals_terminal_nodes_new_grow <- lapply(nodes_new_grow, function(x) {
 #     residuals[x$observations_index]
 #   })
-#   
+#
 #   residuals_terminal_nodes_old_grow <- lapply(parent_old_node, function(x) {
 #     residuals[x$observations_index]
 #   })
-#   
+#
 #   # Calculating value S
 #   S_new <- unlist(mapply(nodes_new_grow, FUN=function(z, x=z$Omega_plus_I_inv) {
 #     if(z$is_Omega_diag) sum(diag(x)) else sum(x)
 #   }, SIMPLIFY = TRUE)) + tau_mu
-#   
+#
 #   S_old <- unlist(mapply(parent_old_node, FUN=function(z, x=z$Omega_plus_I_inv) {
 #     if(z$is_Omega_diag) sum(diag(x)) else sum(x)
 #   }, SIMPLIFY = TRUE)) + tau_mu
-#   
-#   
+#
+#
 #   # Log Omega
 #   log_det_Omega_plus_I_tau_new <- vapply(nodes_new_grow, function(z, x=z$Omega_plus_I_tau) {
 #     if(z$is_Omega_diag) sum(log(diag(x))) else determinant(x, logarithm = TRUE)$modulus
 #   }, numeric(1))
-#   
+#
 #   log_det_Omega_plus_I_tau_old <- vapply(parent_old_node, function(z, x=z$Omega_plus_I_tau) {
 #     if(z$is_Omega_diag) sum(log(diag(x))) else determinant(x, logarithm = TRUE)$modulus
 #   }, numeric(1))
-#   
-#   
+#
+#
 #   # Defining RT_Omega_I_R
 #   RTR_new <- unlist(mapply(nodes_new_grow, residuals_terminal_nodes_new_grow,
 #                        FUN = function(nodes, resid, x=nodes$Omega_plus_I_inv) {
 #                          if(nodes$is_Omega_diag) sum(resid^2 * diag(x)) else crossprod(resid, crossprod(x, resid))
 #                        }, SIMPLIFY = FALSE))
-#   
+#
 #   RTR_old <- unlist(mapply(parent_old_node, residuals_terminal_nodes_old_grow,
 #                            FUN = function(nodes, resid, x=nodes$Omega_plus_I_inv) {
 #                              if(nodes$is_Omega_diag) sum(resid^2 * diag(x)) else crossprod(resid, crossprod(x, resid))
 #                            }, SIMPLIFY = FALSE))
-#   
-#   
-#   
+#
+#
+#
 #   # The term R^{T} solve(Omega + I ) 1
 #   R_Omega_I_one_new <- unlist(mapply(nodes_new_grow, residuals_terminal_nodes_new_grow,
 #                                  FUN = function(nodes, residuals, x=nodes$Omega_plus_I_inv) {
 #                                    if(nodes$is_Omega_diag) sum(residuals * diag(x)) else rowSums(crossprod(residuals, x))
 #                                  }, SIMPLIFY = FALSE))
-#   
+#
 #   R_Omega_I_one_old <- unlist(mapply(parent_old_node, residuals_terminal_nodes_old_grow,
 #                                      FUN = function(nodes, residuals, x=nodes$Omega_plus_I_inv) {
 #                                        if(nodes$is_Omega_diag) sum(residuals * diag(x)) else rowSums(crossprod(residuals, x))
 #                                      }, SIMPLIFY = FALSE))
-#   
+#
 #   log_posterior_new <- -0.5 * sum(log_det_Omega_plus_I_tau_new) - 0.5 * sum(log(S_new) - log(tau_mu)) - 0.5 * sum(RTR_new) + 0.5 * sum(R_Omega_I_one_new^2 / S_new)
 #   log_posterior_old <- -0.5 * sum(log_det_Omega_plus_I_tau_old) - 0.5 * sum(log(S_old) - log(tau_mu)) - 0.5 * sum(RTR_old) + 0.5 * sum(R_Omega_I_one_old^2 / S_old)
-#   
+#
 #   return(list(log_posterior_new = log_posterior_new,
 #               S_new = S_new,
 #               RTR_new = RTR_new,
@@ -205,17 +205,17 @@ update_residuals <- function(tree, x, nu, phi, residuals, tau, seed = NULL) {
   residuals_terminal_nodes <- lapply(terminal_nodes, function(x) {
     residuals[x$observations_index]
   })
-  
-  
+
+
   # Getting the \mu_{j} vector
   mu_values <- vapply(terminal_nodes, "[[", numeric(1), "mu")
 
   # Calculating Omega matrix
   Omega_matrix <- lapply(terminal_nodes, "[[", "Omega_matrix")
-  
+
   # Getting Omega_matrix plust tau
   Omega_matrix_plus_tau <- lapply(Omega_matrix, function(x) { x + diag(tau^-1,nrow = nrow(x))})
-  
+
   # Checking if diagonal
   is_Omega_diag <- lapply(terminal_nodes, "[[", "is_Omega_diag")
 
@@ -257,14 +257,14 @@ update_residuals <- function(tree, x, nu, phi, residuals, tau, seed = NULL) {
   # Calculating g_mean posterior
   residuals_sample <- mapply(FUN=rMVN_var, residuals_mean, residuals_variance, SIMPLIFY = FALSE)
   # residuals_sample <- mapply(FUN=rMVN_var, residuals_terminal_nodes, Omega_matrix_plus_tau, SIMPLIFY = FALSE)
-  
+
   # Adding the mu values calculated
   for(i in seq_along(terminal_nodes)) {
     # Saving g
     residuals_new[terminal_nodes[[i]]$observations_index] <- residuals_sample[[i]]
     # residuals_new[terminal_nodes[[i]]$observations_index] <- residuals_mean[[i]]
-    
-    
+
+
   }
     return(residuals_new)
 }
@@ -388,7 +388,7 @@ gp_bart <- function(x, y,
 
   mean_x <- NULL
   sd_x <- NULL
-  
+
   # Scaling the x
   if(x_scale){
     x_original <- x
@@ -397,7 +397,7 @@ gp_bart <- function(x, y,
     mean_x <- attr(xscale,"scaled:center")
     sd_x <- attr(xscale,"scaled:scale")
     x <- as.matrix(xscale)
-  } else{ 
+  } else{
     x_original <- x
   }
 
@@ -428,7 +428,7 @@ gp_bart <- function(x, y,
 
   a_min <- min(y)
   b_max <- max(y)
-  
+
   # Scale values
   if(scale_boolean) {
     # Normalizing y
@@ -475,10 +475,10 @@ gp_bart <- function(x, y,
                       shape = a_tau)
   }
 
-   
+
   # Creating the likelihood object list
   likelihood_object <- list()
-  
+
   # Getting the number of observations
   n <- length(y)
 
@@ -523,7 +523,7 @@ gp_bart <- function(x, y,
   }
 
   # Storage containers
-  store_size <- (n_iter - burn) 
+  store_size <- (n_iter - burn)
   tree_store <- vector("list", store_size)
   tau_store <- c()
   signal_pc_store <- matrix(NA, ncol = number_trees, nrow = store_size)
@@ -586,11 +586,11 @@ gp_bart <- function(x, y,
       tau_store[curr] <- tau
 
       y_hat_store[curr, ] <- if(scale_boolean){
-        
+
         # Getting the unnormalized version from tau
         unnormalize_bart(colSums(predictions),a = a_min,b = b_max)
       } else {
-        
+
         colSums(predictions)
       }
       # Saving the current partial
@@ -660,7 +660,7 @@ gp_bart <- function(x, y,
           node_min_size = node_min_size,
           verb = verb, rotation = rotation, theta = theta
         )
-        
+
         # Checking if the update tree generated a valid tree, if not skip likelihood calculations
         if( !identical(current_trees[[j]],new_trees[[j]]) ){
 
@@ -671,14 +671,14 @@ gp_bart <- function(x, y,
             residuals_values = current_partial_residuals,
             x = x, tau_mu = tau_mu, tau = tau
           )
-  
+
           # Calculating the likelihood of the old tree
           likelihood_old <- tree_complete_conditional_bart(
             tree = current_trees[[j]], # Calculate the full conditional
             residuals_values = current_partial_residuals,
             x = x, tau_mu = tau_mu, tau = tau
           )
-  
+
           # Extracting only the likelihood
           l_new <- likelihood_new +
             tree_prior(
@@ -686,7 +686,7 @@ gp_bart <- function(x, y,
               alpha = alpha,
               beta = beta
             )
-  
+
           # Extracting only the likelihood
           l_old <- likelihood_old +
             tree_prior(
@@ -694,19 +694,19 @@ gp_bart <- function(x, y,
               alpha = alpha,
               beta = beta
             )
-  
+
           # Getting the log of transitin prob
           log_transition <- log_transition_prob(current_tree = current_trees[[j]],
                                                 new_tree = new_trees[[j]],verb = verb)
-          
+
           # (log) Probability of accept the new proposed tree
           acceptance <- (l_new - l_old + log_transition)
-  
+
           # If Storage or not based on thin and burn parameters
           if((i > burn) && ((i %% thin) == 0)) {
             full_cond_store[curr, j] <- l_old
           }
-          
+
         } else { # Accepting exact same trees
           # Calculating the likelihood of the new and old tree
           likelihood_new <- likelihood_old <- tree_complete_conditional_bart(
@@ -816,27 +816,27 @@ gp_bart <- function(x, y,
           node_min_size = node_min_size,
           verb = verb, rotation = rotation, theta = theta
         )
-        
-        
+
+
         # ==================== #
         # Getting the Omega Inverse the current and the future tree
         # ==================== #
 
         # Checking if the previous tree were identitcal or not
         if(!identical(current_trees[[j]],new_trees[[j]])){
-        
+
             # Getting the inverse for the current terminal nodes
             current_trees[[j]] <- inverse_omega_plus_I(tree = current_trees[[j]],
                                                        x = x, tau = tau,
                                                        nu = nu_vector[j],
                                                        phi = phi_vector[j])
-    
+
             # Getting the inverse for the new tree terminal nodes
             new_trees[[j]] <- inverse_omega_plus_I(tree = new_trees[[j]],
                                                    x = x,tau = tau,
                                                    nu = nu_vector[j],
                                                    phi = phi_vector[j])
-    
+
             # Calculating the likelihood of the new tree
             likelihood_new <- tree_complete_conditional_gpbart(
               tree = new_trees[[j]],  # Calculate the full conditional
@@ -845,7 +845,7 @@ gp_bart <- function(x, y,
               nu = nu_vector[j], phi = phi_vector[j],
               number_trees = number_trees
             )
-    
+
             # Calculating the likelihood of the old tree
             likelihood_old <- tree_complete_conditional_gpbart(
               tree = current_trees[[j]], # Calculate the full conditional
@@ -854,7 +854,7 @@ gp_bart <- function(x, y,
               nu = nu_vector[j], phi = phi_vector[j],
               number_trees = number_trees
             )
-    
+
             # Extracting only the likelihood
             l_new <- likelihood_new$log_posterior +
               tree_prior(
@@ -862,7 +862,7 @@ gp_bart <- function(x, y,
                 alpha = alpha,
                 beta = beta
               )
-    
+
             # Extracting only the likelihood
             l_old <- likelihood_old$log_posterior +
               tree_prior(
@@ -870,21 +870,21 @@ gp_bart <- function(x, y,
                 alpha = alpha,
                 beta = beta
               )
-    
+
             # Getting the log of transitin prob
             log_transition <- log_transition_prob(current_tree = current_trees[[j]],
                                                   new_tree = new_trees[[j]],verb = verb)
-            
+
             # (log) Probability of accept the new proposed tree
             acceptance <- (l_new - l_old + log_transition)
-    
+
             # If Storage or not based on thin and burn parameters
             if((i > burn) && ((i %% thin) == 0)) {
               full_cond_store[curr, j] <- l_old
             }
             # In case of them being identical
         } else {
-          
+
           acceptance <- 0.1
           # Checking if none Omega matrix element were calculated
           if(is.null(current_trees[[j]][unlist(lapply(current_trees[[j]],
@@ -895,9 +895,9 @@ gp_bart <- function(x, y,
                                                          x = x, tau = tau,
                                                          nu = nu_vector[j],
                                                          phi = phi_vector[j])
-              
+
               # Creating the likelihood object
-              likelihood_new <- likelihood_old <- 
+              likelihood_new <- likelihood_old <-
                 tree_complete_conditional_gpbart(
                 tree = current_trees[[j]], # Calculate the full conditional
                 residuals = current_partial_residuals,
@@ -907,8 +907,8 @@ gp_bart <- function(x, y,
               )
             } else{ # Replacing the likelihood_object
               likelihood_new <- likelihood_old <- likelihood_object[[j]]
-            } # end of the if for null likelihood and current tree 
-          
+            } # end of the if for null likelihood and current tree
+
           }
 
         if(acceptance > 0 || acceptance > -stats::rexp(1)) { #
@@ -993,11 +993,15 @@ gp_bart <- function(x, y,
       } # End of Loop through the trees
     }
 
-    tau <- update_tau(x = x,
-                      y = y_scale,
-                      a_tau = a_tau,
-                      d_tau = d_tau,
-                      predictions = colSums(predictions))
+    # tau <- update_tau(x = x,
+    #                   y = y_scale,
+    #                   a_tau = a_tau,
+    #                   d_tau = d_tau,
+    #                   predictions = colSums(predictions))
+    tau <- update_tau_linero(x = x,
+                             y = y_scale,
+                             y_hat = colSums(predictions),
+                             curr_tau = tau)
 
   } # End of Loop through the n_inter
   cat("\n")
@@ -1377,13 +1381,13 @@ count_terminal_nodes <- function(tree) {
 #'         type = c('all', 'median', 'mean'),
 #'         ...)
 #' @export
-predict.gpbart_GPBART <- function(object, x_test, 
+predict.gpbart_GPBART <- function(object, x_test,
                                   pred_bart_only = FALSE,
                                   type = c("all","mean","median"),...) { # type argument Can be "all", "mean" or "meadian"
 
   # Adjusting the type
   type <- match.arg(type)
-  
+
   # Loading x_train
   if(object$x_scale){
     x_train <- as.matrix(scale(object$X,center = object$mean_x,scale = object$sd_x))
@@ -1449,7 +1453,7 @@ predict.gpbart_GPBART <- function(object, x_test,
   } else {
     object$tau_store
   }
-  
+
   out <- list(
     pred = switch(type,
                   all = y_hat_matrix,
@@ -1630,7 +1634,7 @@ remove_omega_plus_I_inv <- function(current_tree_iter) {
   # Selecting terminal nodes names
   # names_terminal_nodes <- names(which(vapply(current_tree_iter, "[[", numeric(1), "terminal") == 1))
   names_terminal_nodes <- names(current_tree_iter)
-  
+
   for(i in names_terminal_nodes) {
     current_tree_iter[[i]]$Omega_plus_I_inv <-
     current_tree_iter[[i]]$distance_matrix <-
@@ -1802,39 +1806,39 @@ get_train_predictions <- function(gpbart_mod) {
 # Calculating a PI coverage
 #' @export
 pi_coverage <- function(y, y_hat_post, sd_post,only_post = FALSE, prob = 0.5,n_mcmc_replications = 1000){
-  
+
   # Getting the number of posterior samples and columns, respect.
   np <- nrow(y_hat_post)
   nobs <- ncol(y_hat_post)
-  
+
   full_post_draw <- list()
-  
+
   # Setting the progress bar
   progress_bar <- utils::txtProgressBar(
     min = 1, max = n_mcmc_replications,
     style = 3, width = 50 )
-  
+
   # Only post matrix
   if(only_post){
     post_draw <- y_hat_post
   } else {
     for(i in 1:n_mcmc_replications){
       utils::setTxtProgressBar(progress_bar, i)
-      
+
       full_post_draw[[i]] <-(y_hat_post + replicate(sd_post,n = nobs)*matrix(stats::rnorm(n = np*nobs),
                                                                              nrow = np))
     }
   }
-  
+
   if(!only_post){
     post_draw<- do.call(rbind,full_post_draw)
   }
-  
+
   # CI boundaries
   low_ci <- apply(post_draw,2,function(x){stats::quantile(x,probs = prob/2)})
   up_ci <- apply(post_draw,2,function(x){stats::quantile(x,probs = 1-prob/2)})
-  
+
   pi_cov <- sum((y<=up_ci) & (y>=low_ci))/length(y)
-  
+
   return(pi_cov)
 }
