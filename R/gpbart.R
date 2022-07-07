@@ -1223,8 +1223,7 @@ predict_gaussian_from_multiple_trees <- function(multiple_trees, # A list of tre
                                                  x_new, # The x that will be predicted
                                                  partial_residuals, # The partial_residual values
                                                  tau,
-                                                 pred_bart_only, # Boolean argument to predict a BART object
-                                                 bool_cov_star){ # Checking if it will sample or not) {
+                                                 pred_bart_only){ # Checking if it will sample or not) {
   # Defining objects
   y_pred_final <-
 
@@ -1331,7 +1330,7 @@ predict_gaussian_from_multiple_trees <- function(multiple_trees, # A list of tre
             y_train = matrix((partial_residuals[m,new_tree[[list_nodes[[i]]]]$observations_index]) - new_tree[[list_nodes[[i]]]]$mu,
                               nrow = nrow(x_current_node)),
             x_star = x_star, tau = tau,
-            nu = nu, phi = phi,get_cov_star = bool_cov_star
+            nu = nu, phi = phi,get_cov_star = FALSE
           )
 
           # Creating the mu vector
@@ -1369,20 +1368,17 @@ count_terminal_nodes <- function(tree) {
 #' @rdname gpbart_GPBART The fitted gpBART model
 #' @param x_test the test set
 #' @param pred_bart_only boolean if there are only bart predictions
-#' @param bool_cov_star checking if will sample or not
 #' @param type select the prediction outputs among 'c("all", "mean","median"))'
 #' @param ... other parameters
 #' @usage
 #' \method{predict}{gpbart_GPBART}(object,
 #'         x_test,
 #'         pred_bart_only = FALSE,
-#'         bool_cov_star =  FALSE,
 #'         type = c('all', 'median', 'mean'),
 #'         ...)
 #' @export
 predict.gpbart_GPBART <- function(object, x_test, 
                                   pred_bart_only = FALSE,
-                                  bool_cov_star = FALSE,
                                   type = c("all","mean","median"),...) { # type argument Can be "all", "mean" or "meadian"
 
   # Adjusting the type
@@ -1431,8 +1427,7 @@ predict.gpbart_GPBART <- function(object, x_test,
       x_new = x_test, partial_residuals = object$current_partial_residuals_list[[i]],
       phi_vector = object$phi_store[i, ],
       nu_vector = object$nu_vector,
-      tau = object$tau_store[[i]], pred_bart_only = pred_bart_only,
-      bool_cov_star = bool_cov_star
+      tau = object$tau_store[[i]], pred_bart_only = pred_bart_only
     )
 
     # Iterating over all trees (test)
