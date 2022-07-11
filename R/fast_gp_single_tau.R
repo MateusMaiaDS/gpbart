@@ -46,7 +46,9 @@ gp_main <- function(x_train, y_train, x_star, tau, phi, nu, distance_matrix_trai
 }
 
 # GP-function main
-gp_main_sample <- function(x_train, y_train, x_star, tau, phi, nu, distance_matrix_train, get_cov_star = TRUE) {
+gp_main_sample <- function(x_train, y_train, x_star, tau,
+                           phi, nu, distance_matrix_train,
+                           get_sample =  TRUE) {
   
   # Getting the distance matrix from x_train and x_star
   distance_matrix_K_star <- distance_matrix(m1 = x_train, m2 = x_star)
@@ -72,9 +74,9 @@ gp_main_sample <- function(x_train, y_train, x_star, tau, phi, nu, distance_matr
   mu_star <- crossprod(K_star, alpha)
   
   # Here the abs is because the smallest values that are coming from here are due to numerical approximations.
-  if(isTRUE(get_cov_star)) {
+  if(isTRUE(get_sample)) {
     K_star_star <- kernel_function(squared_distance_matrix = distance_matrix_K_star_star,
-                                   nu = nu, phi = phi) + diag(x = 1/tau, nrow = nrow(x_star))
+                                   nu = nu, phi = phi) 
     v <- if(K_diag) K_star/L else backsolve(L, K_star, transpose = TRUE, k = n_train)
     cov_star <- K_star_star - crossprod(v)
     

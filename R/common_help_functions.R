@@ -136,8 +136,16 @@ naive_sigma <- function(x,y){
   # Getting the value from p
   p <- ifelse(is.null(ncol(x)), 1, ncol(x))
 
+  # Adjusting the df
+  df <- data.frame(x,y)
+  colnames(df)<- c(colnames(x),"y")
+
   # Naive lm_mod
-  lm_mod <- stats::lm(formula = y ~ ., data =  data.frame(y,x))
+  lm_mod <- stats::lm(formula = y ~ ., data =  df)
+
+  # Getting sigma
+  sigma <- stats::sigma(lm_mod)
+
 
   # sigma <- sqrt(sum((lm_mod$residuals)^2)/(n - p))
   # sigma <- stats::sd(y)
