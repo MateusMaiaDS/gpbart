@@ -11,32 +11,34 @@ Rcpp::Rostream<false>& Rcpp::Rcerr = Rcpp::Rcpp_cerr_get();
 #endif
 
 // symm_distance_matrix
-NumericMatrix symm_distance_matrix(NumericMatrix m1);
-RcppExport SEXP _gpbart_symm_distance_matrix(SEXP m1SEXP) {
+NumericMatrix symm_distance_matrix(NumericMatrix m1, NumericVector phi_vector);
+RcppExport SEXP _gpbart_symm_distance_matrix(SEXP m1SEXP, SEXP phi_vectorSEXP) {
 BEGIN_RCPP
     Rcpp::RObject rcpp_result_gen;
     Rcpp::RNGScope rcpp_rngScope_gen;
     Rcpp::traits::input_parameter< NumericMatrix >::type m1(m1SEXP);
-    rcpp_result_gen = Rcpp::wrap(symm_distance_matrix(m1));
+    Rcpp::traits::input_parameter< NumericVector >::type phi_vector(phi_vectorSEXP);
+    rcpp_result_gen = Rcpp::wrap(symm_distance_matrix(m1, phi_vector));
     return rcpp_result_gen;
 END_RCPP
 }
 // distance_matrix
-NumericMatrix distance_matrix(NumericMatrix m1, NumericMatrix m2);
-RcppExport SEXP _gpbart_distance_matrix(SEXP m1SEXP, SEXP m2SEXP) {
+NumericMatrix distance_matrix(NumericMatrix m1, NumericMatrix m2, NumericVector phi_vector);
+RcppExport SEXP _gpbart_distance_matrix(SEXP m1SEXP, SEXP m2SEXP, SEXP phi_vectorSEXP) {
 BEGIN_RCPP
     Rcpp::RObject rcpp_result_gen;
     Rcpp::RNGScope rcpp_rngScope_gen;
     Rcpp::traits::input_parameter< NumericMatrix >::type m1(m1SEXP);
     Rcpp::traits::input_parameter< NumericMatrix >::type m2(m2SEXP);
-    rcpp_result_gen = Rcpp::wrap(distance_matrix(m1, m2));
+    Rcpp::traits::input_parameter< NumericVector >::type phi_vector(phi_vectorSEXP);
+    rcpp_result_gen = Rcpp::wrap(distance_matrix(m1, m2, phi_vector));
     return rcpp_result_gen;
 END_RCPP
 }
 
 static const R_CallMethodDef CallEntries[] = {
-    {"_gpbart_symm_distance_matrix", (DL_FUNC) &_gpbart_symm_distance_matrix, 1},
-    {"_gpbart_distance_matrix", (DL_FUNC) &_gpbart_distance_matrix, 2},
+    {"_gpbart_symm_distance_matrix", (DL_FUNC) &_gpbart_symm_distance_matrix, 2},
+    {"_gpbart_distance_matrix", (DL_FUNC) &_gpbart_distance_matrix, 3},
     {NULL, NULL, 0}
 };
 
