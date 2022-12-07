@@ -19,7 +19,7 @@ update_phi_gpbart <- function(tree,
                 # Setting a proposal given by the list element "proposal phi"
                 if(proposal_phi[["proposal_mode"]]=="discrete_grid"){
                         if(is.null(proposal_phi[["grid"]])){
-                                phi_proposal <- sample(c(0.1,seq(0,10,by=0.5)[-1],seq(10,20,by = 1), 25,30,50,75,100,125),size = 1)
+                                phi_proposal <- sample(c(0.1, 0.5, 1, 1.5, 2, 3, 4, 5, 6, 7, 8, 9, 10, 50),size = 1)
                         } else {
                                 phi_proposal <- sample(proposal_phi[["grid"]],size = 1)
                         }
@@ -52,7 +52,7 @@ update_phi_gpbart <- function(tree,
 
                 # Calculating the prior log value
                 if(is.null(prior_phi[["type"]])){
-                         prior_log <- log(0.7*stats::dgamma(x = phi_proposal,shape = 10000,rate = 100)+0.3*stats::dgamma(x = phi_proposal,shape = 1.5,rate = 0.2))-log(0.7*stats::dgamma(x = phi_vector_p[i],shape = 10000,rate = 100)+0.3*stats::dgamma(x = phi_vector_p[i],shape = 1.5,rate = 0.2))
+                         prior_log <- log(0.7*stats::dgamma(x = phi_proposal,shape = 5000,rate = 100)+0.3*stats::dgamma(x = phi_proposal,shape = 2,rate = 0.25))-log(0.7*stats::dgamma(x = phi_vector_p[i],shape = 5000,rate = 100)+0.3*stats::dgamma(x = phi_vector_p[i],shape = 2,rate = 0.25))
                 } else if(prior_phi[["type"]]=="gamma_mixture"){
                         if(any(is.null(prior_phi$prob_1),is.null(prior_phi$prob_2),is.null(prior_phi$shape_1),is.null(prior_phi$shape_2),is.null(prior_phi$rate_1),is.null(prior_phi$rate_2)) ){
                                 stop("Insert valid prior parameters")
