@@ -40,7 +40,7 @@ To run the model we would have:
 gp_bart_mod <- gp_bart(x_train = x_train,
                        y_train = c(y_train),
                        x_test = x_test,
-                       n_tree = 10,bart_boolean = TRUE,
+                       n_tree = 10,
                        gp_variables_ = colnames(x_train), # Selecting all var.
                        rotation_variables_ = colnames(x_train)) 
 ```
