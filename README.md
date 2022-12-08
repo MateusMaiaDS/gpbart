@@ -1,5 +1,18 @@
 ### GP-BART
 
+## Installation
+
+You can install the development version of mmgpbart like so:
+
+``` r
+devtools::install_github("MateusMaiaDS/mmgpbart")
+```
+
+``` r
+library(mmgpbart)
+## basic example code
+```
+
 ### Setting a example
 
 This a vignette to explain how to run a simple example of the model, setting its own prior and its hyperparameters. To start we going to use the `friedman` example as the dataset to be used.
