@@ -2,16 +2,12 @@
 
 ## Installation
 
-You can install the development version of mmgpbart like so:
+You can install the development version:
 
 ``` r
-devtools::install_github("MateusMaiaDS/mmgpbart")
+devtools::install_github("MateusMaiaDS/gpbart")
 ```
 
-``` r
-library(mmgpbart)
-## basic example code
-```
 
 ### Setting a example
 
