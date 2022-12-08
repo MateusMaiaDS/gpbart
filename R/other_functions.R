@@ -58,3 +58,22 @@ dhalfcauchy <- function(x,mu,sigma, log = FALSE) {
         }
 
 }
+
+# Define the function
+progress_bar <- function(i, n) {
+        # Calculate the progress value
+        progress <- i / n
+        
+        # Calculate the number of hashes to display
+        hashes <- round(progress * 40)
+        
+        # Create the progress bar string
+        bar <-(c(cat(rep("#", hashes)), cat(rep("-", 40 - hashes))))
+        
+        # Add the progress value to the progress bar
+        progress_string <- paste(round(progress * 100), "%")
+        bar <- paste0(bar, "  ", progress_string)
+        
+        # Return the progress bar string
+        return(bar)
+}

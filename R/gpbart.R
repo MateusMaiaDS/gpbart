@@ -125,8 +125,8 @@ gp_bart <- function(x_train,
                 lambda <- (nsigma*nsigma*qchi)/df
                 d_tau <- (lambda*df)/2
 
-                cat("a_tau is " , round(a_tau,digits = 3)," \n")
-                cat("d_tau is " , round(d_tau,digits = 3)," \n")
+                # cat("a_tau is " , round(a_tau,digits = 3)," \n")
+                # cat("d_tau is " , round(d_tau,digits = 3)," \n")
 
         } else {
 
@@ -149,8 +149,8 @@ gp_bart <- function(x_train,
                 lambda <- (nsigma*nsigma*qchi)/df
                 d_tau <- (lambda*df)/2
 
-                cat("a_tau is " , round(a_tau,digits = 3)," \n")
-                cat("d_tau is " , round(d_tau,digits = 3)," \n")
+                # cat("a_tau is " , round(a_tau,digits = 3)," \n")
+                # cat("d_tau is " , round(d_tau,digits = 3)," \n")
 
         }
 
@@ -203,13 +203,13 @@ gp_bart <- function(x_train,
 
         # Tree verb ratio acceptance
         df_verb <- as.data.frame(matrix(nrow = 0,ncol = 2,dimnames = list(NULL,c("verb","accepted_verb"))))
-
+        
+        # Initialising the model
+        cat("Sampling GP-BART... \n")
         for(i in 1:n_mcmc){
 
-                # Small progress bar
-                if(i %in% progress_bart_limits){
-                        cat("|")
-                }
+                # Progress bar
+                cat(progress_bar(i = i,n = n_mcmc),"\r")
 
                 for(t in 1:n_tree){
 
