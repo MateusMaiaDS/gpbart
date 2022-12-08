@@ -41,15 +41,10 @@ update_phi_gpbart <- function(tree,
 
 
                 # Transition loglikelihood
-                # transition_log <- stats::dunif(x = phi_vector_p[i],min = (3/4)*phi_proposal,max = (4/3)*phi_proposal,log = TRUE) - stats::dunif(x = phi_proposal,min = (3/4)*phi_vector_p[i],max = (4/3)*phi_vector_p[i],log = TRUE)
-
                 if(proposal_phi[["proposal_mode"]] == "sliding_window"){
                         transition_log <- stats::dunif(x = phi_vector_p[i],min = (3/4)*phi_proposal,max = (4/3)*phi_proposal,log = TRUE) - stats::dunif(x = phi_proposal,min = (3/4)*phi_vector_p[i],max = (4/3)*phi_vector_p[i],log = TRUE)
                 }
-                # prior_log <- ((stats::dgamma(x = phi_proposal,shape = 0.1,rate = 1,log = TRUE)+stats::dgamma(x = phi_proposal,shape = 20,rate = 1,log = TRUE))-(stats::dgamma(x = phi_vector_p[i],shape = 0.1,rate = 1,log = TRUE)+stats::dgamma(x = phi_vector_p[i],shape = 20,rate = 1,log = TRUE)))
-                # prior_log <- ((stats::dgamma(x = phi_proposal,shape = 10,rate = 1,log = TRUE)-(stats::dgamma(x = phi_vector_p[i],shape = 10,rate = 1,log = TRUE))))
-                # prior_log <- dhalfcauchy(x = phi_proposal,mu = 0,sigma = 100,log = TRUE) - dhalfcauchy(x = phi_vector_p[i],mu = 0,sigma = 100,log = TRUE)
-
+              
                 # Calculating the prior log value
                 if(is.null(prior_phi[["type"]])){
                          prior_log <- log(0.7*stats::dgamma(x = phi_proposal,shape = 5000,rate = 100)+0.3*stats::dgamma(x = phi_proposal,shape = 2,rate = 0.25))-log(0.7*stats::dgamma(x = phi_vector_p[i],shape = 5000,rate = 100)+0.3*stats::dgamma(x = phi_vector_p[i],shape = 2,rate = 0.25))
@@ -66,12 +61,11 @@ update_phi_gpbart <- function(tree,
 
                 # Calculating acceptance
                 if(proposal_phi[["proposal_mode"]]=="sliding_window"){
-                        acceptance <- exp(new_log_like-old_log_like + prior_log + transition_log ) #+ stats::dgamma(x = phi_proposal,shape = 5,rate = 1,log = TRUE) - stats::dgamma(x = phi_vector_p[i],shape = 5,rate = 1,log = TRUE) )
+                        acceptance <- exp(new_log_like-old_log_like + prior_log + transition_log ) 
                 } else {
-                        acceptance <- exp(new_log_like-old_log_like + prior_log ) #+ stats::dgamma(x = phi_proposal,shape = 5,rate = 1,log = TRUE) - stats::dgamma(x = phi_vector_p[i],shape = 5,rate = 1,log = TRUE) )
+                        acceptance <- exp(new_log_like-old_log_like + prior_log ) 
 
                 }
-                # acceptance <- exp(new_log_like-old_log_like)
 
                 if(stats::runif(n = 1,min = 0,max = 1)<=acceptance){
                         phi_vector_p <- new_phi_vector_p
@@ -190,18 +184,13 @@ update_g_node <- function(node,
         res_node <- res_vec[node$obs_train]
         # Calculating the v factor from equation 11
         distance_sq_matrix <- symm_distance_matrix(m1 = x_train_node,phi_vector = phi_vector_p)
-        omega <- (nu^(-1))*exp(-distance_sq_matrix)
+        omega <- (nu^(-1))*exp(-distance_sq_matrix) + 1/tau_mu
         omega_plus_tau_diag <- omega+ diag(1/tau,nrow = nrow(distance_sq_matrix))
         inv_omega_plus_tau <- chol2inv(chol(omega_plus_tau_diag))
 
-
-
-        # Calculating S
-        S <- sum(inv_omega_plus_tau)+tau_mu
-
         if(!test_only){
                 # Calculating the mean
-                g_mean <- node$mu + crossprod(omega,crossprod(inv_omega_plus_tau,(res_node-node$mu)))
+                g_mean <- crossprod(omega,crossprod(inv_omega_plus_tau,(res_node)))
                 g_var <- omega - crossprod(omega,crossprod(inv_omega_plus_tau,omega))
         }
 
@@ -212,11 +201,11 @@ update_g_node <- function(node,
         distance_sq_matrix_test_star <- distance_matrix(m1 = x_train_node,m2 = x_test_node,phi_vector = phi_vector_p)
         distance_sq_matrix_test_star_star <- symm_distance_matrix(m1 = x_test_node,phi_vector = phi_vector_p)
 
-        omega_star <- (nu^(-1))*exp(-distance_sq_matrix_test_star)
-        omega_star_star <- (nu^(-1))*exp(-distance_sq_matrix_test_star_star)
+        omega_star <- (nu^(-1))*exp(-distance_sq_matrix_test_star) + 1/tau_mu
+        omega_star_star <- (nu^(-1))*exp(-distance_sq_matrix_test_star_star) + 1/tau_mu
 
 
-        g_test_mean <- node$mu+crossprod(omega_star,crossprod(inv_omega_plus_tau,res_node-node$mu))
+        g_test_mean <- crossprod(omega_star,crossprod(inv_omega_plus_tau,res_node))
         g_test_var <- omega_star_star - crossprod(omega_star,crossprod(inv_omega_plus_tau,omega_star))
         # ====
 

@@ -31,7 +31,7 @@ gp_bart <- function(x_train,
                                    rate_1 = NULL, rate_2 = NULL),
                  proposal_phi_ = list(proposal_mode = "discrete_grid", grid = NULL)){
 
-
+        
         # Verifying if x_train and x_test are matrices
         if(!is.matrix(x_train) || !is.matrix(x_test)){
                 x_train <- as.matrix(x_train)
@@ -264,10 +264,6 @@ gp_bart <- function(x_train,
                                         stop("No valid verb for BART approach")
                                 }
 
-                                # Updating mu
-                                current_trees[[t]] <- update_mu(tree = current_trees[[t]],
-                                                                partial_residuals = partial_residuals,
-                                                                tau = tau,tau_mu = tau_mu)
 
                                 # Prediction aux
                                 pred_obj <- getPrediction(tree = current_trees[[t]],x_train = x_train, x_test = x_test)
@@ -352,10 +348,7 @@ gp_bart <- function(x_train,
                                                           phi_vector_p = phi_vec_matrix[t,],nu = nu,tau = tau,tau_mu = tau_mu,cov_gp = gp_variables_,
                                                           proposal_phi = proposal_phi_,prior_phi = prior_phi_)
 
-                                # Update the mu values
-                                current_trees[[t]] <- update_mu_gpbart(tree = current_trees[[t]],x_train = x_train,res_vec = partial_residuals,nu = nu,
-                                                                  phi_vector_p = phi_vec_matrix[t,],tau = tau,tau_mu = tau_mu,cov_gp = gp_variables_)
-
+                               
                                 # This one is the most complicated, I need to update the predictions based on the tree structure
                                 sample_g_aux <- update_g_gpbart(tree = current_trees[[t]],
                                                                 x_train = x_train,
@@ -413,10 +406,6 @@ gp_bart <- function(x_train,
                 y_train_hat_post <- unnormalize_bart(z = y_train_hat_post,a = a_min,b = b_max)
                 y_test_hat_post <- unnormalize_bart(z = y_test_hat_post,a = a_min,b = b_max)
         }
-
-        # Diagnostic
-        # plot(y_train,colMeans(y_train_hat_post))
-        # crossprod(y_train-colMeans(y_train_hat_post))
 
         # Returning the posterior objets
         if(keeptrees){
