@@ -112,7 +112,7 @@ gp_bart <- function(x_train,
                 y_scale <- normalize_bart(y = y_train)
 
                 # Calculating \tau_{\mu} based on the scale of y
-                tau_mu <- (4 * n_tree * (K_bart^2))
+                tau_mu <- (8 * n_tree * (K_bart^2))
 
                 # Getting the naive sigma
                 nsigma <- naive_sigma(x = x_train,y = y_scale)
@@ -135,7 +135,7 @@ gp_bart <- function(x_train,
 
                 # Calculating \tau_{\mu} based on the scale of y
                 # Need to change this value in case of non-scaling
-                tau_mu <- (4 * n_tree * (K_bart^2))/((b_max-a_min)^2)
+                tau_mu <- (8 * n_tree * (K_bart^2))/((b_max-a_min)^2)
                 nsigma <- naive_sigma(x = x_train,y = y_scale)
 
                 # Getting the naive sigma
@@ -176,9 +176,12 @@ gp_bart <- function(x_train,
         # Initialising values for phi_vec, and nu
         phi_vec_matrix <- matrix(1, nrow = n_tree,ncol = ncol(x_train[,gp_variables_, drop = FALSE]))
         phi_post <- list(n_post)
-        nu <- 4*(K_bart^2)*n_tree
+        
+        # Setting values for nu
+        nu <- tau_mu
         nu_post <- numeric(n_post)
 
+        # Setting the vector for tau
         tau_post <- numeric(n_post)
         post_trees <- vector("list",length = n_tree)
 
