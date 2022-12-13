@@ -112,7 +112,7 @@ gp_bart <- function(x_train,
                 y_scale <- normalize_bart(y = y_train)
 
                 # Calculating \tau_{\mu} based on the scale of y
-                tau_mu <- (8 * n_tree * (K_bart^2))
+                tau_mu <- (4 * n_tree * (K_bart^2))
 
                 # Getting the naive sigma
                 nsigma <- naive_sigma(x = x_train,y = y_scale)
@@ -135,7 +135,7 @@ gp_bart <- function(x_train,
 
                 # Calculating \tau_{\mu} based on the scale of y
                 # Need to change this value in case of non-scaling
-                tau_mu <- (8 * n_tree * (K_bart^2))/((b_max-a_min)^2)
+                tau_mu <- (4 * n_tree * (K_bart^2))/((b_max-a_min)^2)
                 nsigma <- naive_sigma(x = x_train,y = y_scale)
 
                 # Getting the naive sigma
