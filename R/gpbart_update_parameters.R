@@ -19,7 +19,9 @@ update_phi_gpbart <- function(tree,
                 # Setting a proposal given by the list element "proposal phi"
                 if(proposal_phi[["proposal_mode"]]=="discrete_grid"){
                         if(is.null(proposal_phi[["grid"]])){
-                                phi_proposal <- sample(c(0.1, 0.5, 1, 1.5, 2, 3, 4, 5, 6, 7, 8, 9, 10, 50),size = 1)
+                                phi_proposal <- sample(c(0.1, 0.5, 1, 1.5, 2, 3, 4, 50),size = 1)
+                                # phi_proposal <- sample(c( 2, 3, 4, 5, 6, 7, 8, 9, 10, 50),size = 1)
+                                
                         } else {
                                 phi_proposal <- sample(proposal_phi[["grid"]],size = 1)
                         }
@@ -47,7 +49,7 @@ update_phi_gpbart <- function(tree,
               
                 # Calculating the prior log value
                 if(is.null(prior_phi[["type"]])){
-                         prior_log <- log(0.7*stats::dgamma(x = phi_proposal,shape = 5000,rate = 100)+0.3*stats::dgamma(x = phi_proposal,shape = 2,rate = 0.25))-log(0.7*stats::dgamma(x = phi_vector_p[i],shape = 5000,rate = 100)+0.3*stats::dgamma(x = phi_vector_p[i],shape = 2,rate = 0.25))
+                         prior_log <- log(0.7*stats::dgamma(x = phi_proposal,shape = 5000,rate = 100)+0.3*stats::dgamma(x = phi_proposal,shape = 3,rate = 2.5))-log(0.7*stats::dgamma(x = phi_vector_p[i],shape = 5000,rate = 100)+0.3*stats::dgamma(x = phi_vector_p[i],shape = 3,rate = 2.5))
                 } else if(prior_phi[["type"]]=="gamma_mixture"){
                         if(any(is.null(prior_phi$prob_1),is.null(prior_phi$prob_2),is.null(prior_phi$shape_1),is.null(prior_phi$shape_2),is.null(prior_phi$rate_1),is.null(prior_phi$rate_2)) ){
                                 stop("Insert valid prior parameters")
@@ -127,6 +129,7 @@ update_mu_node <- function(node,
         inv_omega_plus_tau <- chol2inv(chol(omega_plus_tau_diag))
         # Calculating S
         S <- sum(inv_omega_plus_tau)+tau_mu
+        
 
         # Calculating the mean
         mu_mean <- (S^(-1))*crossprod(res_node,inv_omega_plus_tau)
@@ -341,3 +344,108 @@ update_single_nu <- function(current_trees,
         }
 }
 
+
+# Updating a single nu
+update_single_phi <- function(current_trees,
+                             phi_vector,
+                             x_train,
+                             nu,
+                             y_train,
+                             tau,
+                             tau_mu,
+                             K_bart = 2){
+  
+  
+    # Getting n_tree
+    n_tree <- length(current_trees)
+    
+    
+    for(i in 1:length(phi_vector))
+        
+      # Getting the current_nu
+      proposal_phi <-  sample(c(0.1, 0.5, 1, 1.5, 2, 3, 4, 50),size = 1)
+      new_phi_vec <- phi_vector
+      new_phi_vec[j] <- proposal_phi
+      
+      # Creating the list of terminal nodes
+      list_terminal_nodes_cov <- vector("list",length = length(current_trees))
+      list_mus <- vector("list",length = length(current_trees))
+      list_distance_matrix <- vector("list",length = length(current_trees))
+      new_list_distance_matrix <- vector("list", length = length(current_trees))
+      
+      # list_terminal_nodes_cov <- list()
+      list_mus <- list()
+      
+      for(t in 1:length(current_trees)){
+        
+        # Permutation and nu elements
+        perm_aux <- s_permutation(tree = current_trees[[t]],x_train = x_train)
+        list_terminal_nodes_cov[[t]] <- perm_aux$permutation_matrix
+        # list_mus[[t]] <- perm_aux$mu_vec
+        list_distance_matrix[[t]] <- symm_distance_matrix(m1 = x_train,phi_vector = phi_vector)
+        new_list_distance_matrix[[t]] <- symm_distance_matrix(m1 = x_train,phi_vector = phi_vector_new)
+        
+      }
+      
+      # Creating the big distance block matrix
+      big_block_permutation <- do.call(cbind,list_terminal_nodes_cov)
+      big_block_distance <- Matrix::bdiag(list_distance_matrix)
+      # big_long_mean_matrix <- do.call(c,list_mus)
+      
+      # For the new phi
+      new_big_block_distance <- Matrix::bdiag(new_list_distance_matrix)
+
+      # Calcualting the dmn.mean
+      # y_post_mean <- big_block_permutation%*%big_long_mean_matrix
+      y_post_cov <- big_block_permutation%*%big_block_distance%*%t(big_block_permutation)
+      
+      # y_post_mean <- big_block_permutation%*%big_long_mean_matrix
+      
+      y_post_cov <- big_block_permutation%*%big_block_distance%*%t(big_block_permutation)
+      y_post_cov <- big_block_permutation%*%new_big_block_distance%*%t(big_block_permutation)
+      
+      kernel_post_cov <- kernel_function(as.matrix(y_post_cov),nu = current_nu)
+      old_phi_log <- mvnfast::dmvn(X = y_train,mu = rep(0,ncol(kernel_post_cov)), sigma = kernel_post_cov+diag(tau^-1,nrow = nrow(x_train))+tau_mu^-1,log = TRUE)
+      new_phi_log <- mvnfast::dmvn(X = y_train,mu = rep(0,ncol(kernel_post_cov)), sigma = kernel_post_cov+diag(tau^-1,nrow = nrow(x_train))+tau_mu^-1,log = TRUE)
+      
+      # Addin gthe prior term
+      prior_old <- sum(log(0.7*stats::dgamma(x = phi_vector,shape = 5000,rate = 100)+0.3*stats::dgamma(x = phi_vector,shape = 3,rate = 2.5)))
+      prior_new <- sum(log(0.7*stats::dgamma(x = new_phi_vector,shape = 5000,rate = 100)+0.3*stats::dgamma(x = new_phi_vector,shape = 3,rate = 2.5)))    
+      acceptance <- new_phi_log-old_phi_log+prior_new-prior_old
+      
+      if(stats::runif(n = 1) < exp(acceptance)){
+        phi_vector <- new_phi_vector
+      } 
+      
+  }
+
+  return(phi_vector)
+
+}
+
+# Sampling from the current mixture
+phi_sample <- function(n){
+  
+  
+  phi_sample <- numeric(n)
+  
+  for(i in 1:n){
+    
+    aux_unif <- runif(n = 1,min = 0,max = 1)
+    
+    if(aux_unif<0.7){
+      phi_sample[i] <- stats::rgamma(n = 1,shape = 5000,rate = 100)
+    } else {
+      phi_sample[i] <- stats::rgamma(n = 1,shape = 0.5,rate = 0.25)
+    }
+    
+  }
+  
+  return(phi_sample)
+}
+
+phi_sample(n = 10000) %>% density() %>% plot
+
+rgamma(n = 10000,shape = 3,rate = 2.5) %>%
+  density() %>% plot %>% abline(v = 4,col = "red") %>%
+  abline(v = 0.1,  col = "blue")

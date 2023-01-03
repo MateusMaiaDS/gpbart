@@ -174,11 +174,17 @@ gp_bart <- function(x_train,
         all_tree_prediction <- vector("list", length = n_post)
 
         # Initialising values for phi_vec, and nu
-        phi_vec_matrix <- matrix(1, nrow = n_tree,ncol = ncol(x_train[,gp_variables_, drop = FALSE]))
+        phi_vec_matrix <- matrix(10, nrow = n_tree,ncol = ncol(x_train[,gp_variables_, drop = FALSE]))
+        # phi_vec_matrix <- matrix(rep(c(0.1,50),each = n_tree),
+        #                          nrow = n_tree,ncol = ncol(x_train[,gp_variables_, drop = FALSE]))
+        
         phi_post <- list(n_post)
         
         # Setting values for nu
         nu <- tau_mu
+        # tau_mu <- 1e24
+        
+        # nu <- 1000
         nu_post <- numeric(n_post)
 
         # Setting the vector for tau
@@ -300,6 +306,9 @@ gp_bart <- function(x_train,
                                         verb <- "change"
                                 }
 
+                                # Not growinig any tree
+                                # verb <- "prune"
+                                
                                 # Selecting one verb movement
                                 if(verb == "grow"){
                                         current_tree_aux <- grow_gpbart(res_vec = partial_residuals,tree = current_trees[[t]],
@@ -423,7 +432,7 @@ gp_bart <- function(x_train,
                                   a_tau = a_tau,
                                   d_tau = d_tau,
                                   scale_boolean = scale_boolean,
-                                  K_bart = sqrt(2),
+                                  K_bart = K_bart,
                                   bart_boolean = bart_boolean,
                                   bart_warmup = bart_warmup,
                                   x_scale = x_scale,
@@ -431,7 +440,8 @@ gp_bart <- function(x_train,
                                   gp_variables_ = gp_variables_,
                                   rotation_variables_ = rotation_variables_,
                                   n_mcmc = n_mcmc,
-                                  n_burn = n_burn),
+                                  n_burn = n_burn,
+                                  tau_mu = tau_mu),
                      posterior = list(phi_post = phi_post,
                                       nu_post = nu_post,
                                       partial_residuals = current_partial_residuals_list,
@@ -450,7 +460,7 @@ gp_bart <- function(x_train,
                                   a_tau = a_tau,
                                   d_tau = d_tau,
                                   scale_boolean = scale_boolean,
-                                  K_bart = 2,
+                                  K_bart = K_bart,
                                   bart_boolean = bart_boolean,
                                   bart_warmup = bart_warmup,
                                   x_scale = x_scale,
@@ -458,7 +468,8 @@ gp_bart <- function(x_train,
                                   gp_variables_ = gp_variables_,
                                   rotation_variables_ = rotation_variables_,
                                   n_mcmc = n_mcmc,
-                                  n_burn = n_burn),
+                                  n_burn = n_burn,
+                                  tau_mu = tau_mu),
                      posterior = list(phi_post = phi_post,
                                       nu_post = nu_post,
                                       partial_residuals = current_partial_residuals_list,
