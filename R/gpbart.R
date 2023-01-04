@@ -31,7 +31,7 @@ gp_bart <- function(x_train,
                                    rate_1 = NULL, rate_2 = NULL),
                  proposal_phi_ = list(proposal_mode = "discrete_grid", grid = NULL)){
 
-        
+
         # Verifying if x_train and x_test are matrices
         if(!is.matrix(x_train) || !is.matrix(x_test)){
                 x_train <- as.matrix(x_train)
@@ -112,7 +112,7 @@ gp_bart <- function(x_train,
                 y_scale <- normalize_bart(y = y_train)
 
                 # Calculating \tau_{\mu} based on the scale of y
-                tau_mu <- (8 * n_tree * (K_bart^2))
+                tau_mu <- (4 * n_tree * (K_bart^2))
 
                 # Getting the naive sigma
                 nsigma <- naive_sigma(x = x_train,y = y_scale)
@@ -125,8 +125,8 @@ gp_bart <- function(x_train,
                 lambda <- (nsigma*nsigma*qchi)/df
                 d_tau <- (lambda*df)/2
 
-                # cat("a_tau is " , round(a_tau,digits = 3)," \n")
-                # cat("d_tau is " , round(d_tau,digits = 3)," \n")
+                cat("a_tau is " , round(a_tau,digits = 3)," \n")
+                cat("d_tau is " , round(d_tau,digits = 3)," \n")
 
         } else {
 
@@ -135,7 +135,7 @@ gp_bart <- function(x_train,
 
                 # Calculating \tau_{\mu} based on the scale of y
                 # Need to change this value in case of non-scaling
-                tau_mu <- (8 * n_tree * (K_bart^2))/((b_max-a_min)^2)
+                tau_mu <- (4 * n_tree * (K_bart^2))/((b_max-a_min)^2)
                 nsigma <- naive_sigma(x = x_train,y = y_scale)
 
                 # Getting the naive sigma
@@ -149,8 +149,8 @@ gp_bart <- function(x_train,
                 lambda <- (nsigma*nsigma*qchi)/df
                 d_tau <- (lambda*df)/2
 
-                # cat("a_tau is " , round(a_tau,digits = 3)," \n")
-                # cat("d_tau is " , round(d_tau,digits = 3)," \n")
+                cat("a_tau is " , round(a_tau,digits = 3)," \n")
+                cat("d_tau is " , round(d_tau,digits = 3)," \n")
 
         }
 
@@ -174,20 +174,11 @@ gp_bart <- function(x_train,
         all_tree_prediction <- vector("list", length = n_post)
 
         # Initialising values for phi_vec, and nu
-        phi_vec_matrix <- matrix(10, nrow = n_tree,ncol = ncol(x_train[,gp_variables_, drop = FALSE]))
-        # phi_vec_matrix <- matrix(rep(c(0.1,50),each = n_tree),
-        #                          nrow = n_tree,ncol = ncol(x_train[,gp_variables_, drop = FALSE]))
-        
+        phi_vec_matrix <- matrix(1, nrow = n_tree,ncol = ncol(x_train[,gp_variables_, drop = FALSE]))
         phi_post <- list(n_post)
-        
-        # Setting values for nu
-        nu <- tau_mu
-        # tau_mu <- 1e24
-        
-        # nu <- 1000
+        nu <- 4*(K_bart^2)*n_tree
         nu_post <- numeric(n_post)
 
-        # Setting the vector for tau
         tau_post <- numeric(n_post)
         post_trees <- vector("list",length = n_tree)
 
@@ -209,13 +200,13 @@ gp_bart <- function(x_train,
 
         # Tree verb ratio acceptance
         df_verb <- as.data.frame(matrix(nrow = 0,ncol = 2,dimnames = list(NULL,c("verb","accepted_verb"))))
-        
-        # Initialising the model
-        cat("Sampling GP-BART... \n")
+
         for(i in 1:n_mcmc){
 
-                # Progress bar
-                cat(progress_bar(i = i,n = n_mcmc),"\r")
+                # Small progress bar
+                if(i %in% progress_bart_limits){
+                        cat("|")
+                }
 
                 for(t in 1:n_tree){
 
@@ -273,6 +264,10 @@ gp_bart <- function(x_train,
                                         stop("No valid verb for BART approach")
                                 }
 
+                                # Updating mu
+                                current_trees[[t]] <- update_mu(tree = current_trees[[t]],
+                                                                partial_residuals = partial_residuals,
+                                                                tau = tau,tau_mu = tau_mu)
 
                                 # Prediction aux
                                 pred_obj <- getPrediction(tree = current_trees[[t]],x_train = x_train, x_test = x_test)
@@ -306,9 +301,6 @@ gp_bart <- function(x_train,
                                         verb <- "change"
                                 }
 
-                                # Not growinig any tree
-                                # verb <- "prune"
-                                
                                 # Selecting one verb movement
                                 if(verb == "grow"){
                                         current_tree_aux <- grow_gpbart(res_vec = partial_residuals,tree = current_trees[[t]],
@@ -360,7 +352,10 @@ gp_bart <- function(x_train,
                                                           phi_vector_p = phi_vec_matrix[t,],nu = nu,tau = tau,tau_mu = tau_mu,cov_gp = gp_variables_,
                                                           proposal_phi = proposal_phi_,prior_phi = prior_phi_)
 
-                               
+                                # Update the mu values
+                                current_trees[[t]] <- update_mu_gpbart(tree = current_trees[[t]],x_train = x_train,res_vec = partial_residuals,nu = nu,
+                                                                  phi_vector_p = phi_vec_matrix[t,],tau = tau,tau_mu = tau_mu,cov_gp = gp_variables_)
+
                                 # This one is the most complicated, I need to update the predictions based on the tree structure
                                 sample_g_aux <- update_g_gpbart(tree = current_trees[[t]],
                                                                 x_train = x_train,
@@ -419,6 +414,10 @@ gp_bart <- function(x_train,
                 y_test_hat_post <- unnormalize_bart(z = y_test_hat_post,a = a_min,b = b_max)
         }
 
+        # Diagnostic
+        # plot(y_train,colMeans(y_train_hat_post))
+        # crossprod(y_train-colMeans(y_train_hat_post))
+
         # Returning the posterior objets
         if(keeptrees){
                 post_obj <- list(tau_post = tau_post,
@@ -432,7 +431,7 @@ gp_bart <- function(x_train,
                                   a_tau = a_tau,
                                   d_tau = d_tau,
                                   scale_boolean = scale_boolean,
-                                  K_bart = K_bart,
+                                  K_bart = 2,
                                   bart_boolean = bart_boolean,
                                   bart_warmup = bart_warmup,
                                   x_scale = x_scale,
@@ -440,8 +439,7 @@ gp_bart <- function(x_train,
                                   gp_variables_ = gp_variables_,
                                   rotation_variables_ = rotation_variables_,
                                   n_mcmc = n_mcmc,
-                                  n_burn = n_burn,
-                                  tau_mu = tau_mu),
+                                  n_burn = n_burn),
                      posterior = list(phi_post = phi_post,
                                       nu_post = nu_post,
                                       partial_residuals = current_partial_residuals_list,
@@ -460,7 +458,7 @@ gp_bart <- function(x_train,
                                   a_tau = a_tau,
                                   d_tau = d_tau,
                                   scale_boolean = scale_boolean,
-                                  K_bart = K_bart,
+                                  K_bart = 2,
                                   bart_boolean = bart_boolean,
                                   bart_warmup = bart_warmup,
                                   x_scale = x_scale,
@@ -468,8 +466,7 @@ gp_bart <- function(x_train,
                                   gp_variables_ = gp_variables_,
                                   rotation_variables_ = rotation_variables_,
                                   n_mcmc = n_mcmc,
-                                  n_burn = n_burn,
-                                  tau_mu = tau_mu),
+                                  n_burn = n_burn),
                      posterior = list(phi_post = phi_post,
                                       nu_post = nu_post,
                                       partial_residuals = current_partial_residuals_list,

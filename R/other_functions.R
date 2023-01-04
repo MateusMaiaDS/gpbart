@@ -18,7 +18,7 @@ kernel_function <- function(squared_distance_matrix_phi, nu) {
 # Calculating RMSE
 #' @export
 rmse <- function(obs, pred) {
-        return(sqrt(stats::mean((obs - pred)^2)))
+        return(sqrt(mean((obs - pred)^2)))
 }
 
 # Calculating CRPS from (https://arxiv.org/pdf/1709.04743.pdf)
@@ -30,7 +30,7 @@ crps <- function(y,means,sds){
 
         crps_vector <- sds*(z*(2*stats::pnorm(q = z,mean = 0,sd = 1)-1) + 2*stats::dnorm(x = z,mean = 0,sd = 1) - 1/(sqrt(pi)) )
 
-        return(list(CRPS = stats::mean(crps_vector), crps = crps_vector))
+        return(list(CRPS = mean(crps_vector), crps = crps_vector))
 }
 
 
@@ -57,23 +57,4 @@ dhalfcauchy <- function(x,mu,sigma, log = FALSE) {
                 log(ifelse(x>mu,(2/(pi*sigma))*(1/(1+((x-mu)^2)/(sigma^2))),0))
         }
 
-}
-
-# Define the function
-progress_bar <- function(i, n) {
-        # Calculate the progress value
-        progress <- i / n
-        
-        # Calculate the number of hashes to display
-        hashes <- round(progress * 40)
-        
-        # Create the progress bar string
-        bar <-(c(cat(rep("#", hashes)), cat(rep("-", 40 - hashes))))
-        
-        # Add the progress value to the progress bar
-        progress_string <- paste(round(progress * 100), "%")
-        bar <- paste0(bar, "  ", progress_string)
-        
-        # Return the progress bar string
-        return(bar)
 }
