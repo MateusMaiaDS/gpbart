@@ -13,7 +13,7 @@ gp_bart <- function(x_train,
                  n_burn = 500,
                  node_min_size = 1,
                  tau = 1,
-                 alpha = 0.95, beta = 2,
+                 alpha = 0.5, beta = 2,
                  df = 3, sigquant = 0.9,
                  numcut = 100,
                  scale_boolean = TRUE,
@@ -112,7 +112,7 @@ gp_bart <- function(x_train,
                 y_scale <- normalize_bart(y = y_train)
 
                 # Calculating \tau_{\mu} based on the scale of y
-                tau_mu <- (4 * n_tree * (K_bart^2))
+                tau_mu <- (8 * n_tree * (K_bart^2))
 
                 # Getting the naive sigma
                 nsigma <- naive_sigma(x = x_train,y = y_scale)
@@ -135,7 +135,7 @@ gp_bart <- function(x_train,
 
                 # Calculating \tau_{\mu} based on the scale of y
                 # Need to change this value in case of non-scaling
-                tau_mu <- (4 * n_tree * (K_bart^2))/((b_max-a_min)^2)
+                tau_mu <- (8 * n_tree * (K_bart^2))/((b_max-a_min)^2)
                 nsigma <- naive_sigma(x = x_train,y = y_scale)
 
                 # Getting the naive sigma
@@ -353,8 +353,8 @@ gp_bart <- function(x_train,
                                                           proposal_phi = proposal_phi_,prior_phi = prior_phi_)
 
                                 # Update the mu values
-                                current_trees[[t]] <- update_mu_gpbart(tree = current_trees[[t]],x_train = x_train,res_vec = partial_residuals,nu = nu,
-                                                                  phi_vector_p = phi_vec_matrix[t,],tau = tau,tau_mu = tau_mu,cov_gp = gp_variables_)
+                                # current_trees[[t]] <- update_mu_gpbart(tree = current_trees[[t]],x_train = x_train,res_vec = partial_residuals,nu = nu,
+                                #                                   phi_vector_p = phi_vec_matrix[t,],tau = tau,tau_mu = tau_mu,cov_gp = gp_variables_)
 
                                 # This one is the most complicated, I need to update the predictions based on the tree structure
                                 sample_g_aux <- update_g_gpbart(tree = current_trees[[t]],
