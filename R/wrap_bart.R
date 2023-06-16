@@ -83,7 +83,11 @@ gpbart <- function(x_train,
      # Getting the valid
      dummy_x <- base_dummyVars(x_train)
 
-     # Create a data.frame aux
+     # Restricing rotation for the univariate case
+     if(ncol(x_train)==1){
+             no_rotation_bool = TRUE
+             only_rotation_bool = FALSE
+     }
 
      # Create a list
      if(length(dummy_x$facVars)!=0){
