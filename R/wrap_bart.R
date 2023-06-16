@@ -173,7 +173,6 @@ gpbart <- function(x_train,
      # Call the bart function
      # tau_init <- tau
      tau_init <- nsigma^(-2)
-     print(tau_init)
      mu_init <- mean(c(unlist(y_scale)))
 
      if(rand_tau_init) {
