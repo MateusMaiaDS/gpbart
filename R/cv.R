@@ -1,6 +1,18 @@
-# Exporting the kfold function
+#' K-fold
+#' 
+#' A K-fold setting for crossvalidation
+#' 
+#' @param data A data.frame with the whole data to be split into training and test folds.
+#' @param dependent_variable A string with the name of the target variable
+#' @param k_partitions Number of folds to be used in the K-Fold setting
+#' @param seed Setting a seed to reproducibility of the cross validation
+#' @param as_data_frame A Boolean to return the \code{x_train} and \code{x_test} partitions as \code{data.frame}
 #' @export
-k_fold <- function(data,dependent_variable="y",k_partitions,seed=NULL,as_data_frame = FALSE){
+k_fold <- function(data,
+                   dependent_variable="y",
+                   k_partitions,
+                   seed=NULL,
+                   as_data_frame = FALSE){
 
      # Setting the seed.
      set.seed(seed)
@@ -46,6 +58,58 @@ k_fold <- function(data,dependent_variable="y",k_partitions,seed=NULL,as_data_fr
      }
 
      return(k_fold_validation)
+
+}
+
+# Exporting the kfold function
+#' @importFrom stats kmeans
+spatial_k_fold <- function(data,dependent_variable="y",k_partitions,seed=NULL,as_data_frame = FALSE){
+
+        # Setting the seed.
+        set.seed(seed)
+
+        # Creating the object k_fold
+        k_fold_validation <- list()
+
+        # Creating the test_ratio
+        partitions_index <- kfold(x = data,k = k_partitions)
+        partitions_index <- kmeans(x = data[,colnames(data)!="y",drop=FALSE],centers = k_partitions)$cluster
+
+        # Without use any package
+        # if(nrow(data)%%k_partitions!=0){
+        # partitions_index <- sample(rep(1:k_partitions,floor(nrow(data)/k_partitions)+1),
+        #                            size = nrow(data),replace = FALSE)
+        # }else{
+        #   partitions_index <- sample(rep(1:k_partitions,k_partitions,
+        #                              size = nrow(data),replace = FALSE))
+        # }
+        for(k in 1:k_partitions){
+                # Training values
+                cat("Running repetition number ",k,"\n")
+
+                # Training
+                if(as_data_frame){
+                        x_train = data[partitions_index!=k,colnames(data)!="y",drop=FALSE] #%>% as.matrix
+                        y_train = data[partitions_index!=k,colnames(data)=="y",drop=FALSE] #%>% as.matrix
+
+                        # Test
+                        x_test = data[partitions_index==k,colnames(data)!="y",drop=FALSE] #%>% as.matrix
+                        y_test = data[partitions_index==k,colnames(data)=="y",drop=FALSE] #%>% as.matrix
+                } else {
+                        x_train = as.matrix(data[partitions_index!=k,colnames(data)!="y",drop=FALSE]) #%>% as.matrix
+                        y_train = as.matrix(data[partitions_index!=k,colnames(data)=="y",drop=FALSE]) #%>% as.matrix
+
+                        # Test
+                        x_test = as.matrix(data[partitions_index==k,colnames(data)!="y",drop=FALSE]) #%>% as.matrix
+                        y_test = as.matrix(data[partitions_index==k,colnames(data)=="y",drop=FALSE]) #%>% as.matrix
+
+                }
+
+                # Saving the data split
+                k_fold_validation[[k]]<-list(x_train=x_train,y_train=y_train,x_test=x_test,y_test=y_test)
+        }
+
+        return(k_fold_validation)
 
 }
 

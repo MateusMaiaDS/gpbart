@@ -23,7 +23,7 @@ sd <- 0.1
 fried_data <- sim_friedman(n = n,seed = seed,sd = sd)
 # Setting a cross-validation object
 cv_obj <- k_fold(data = fried_data,dependent_variable = "y",
-                 k_partitions = 5,seed = seed)
+                 k_partitions = 5,seed = seed,as.data.frame = TRUE)
 # Selecting one fold
 fold <- 1
 x_train <- cv_obj[[fold]]$x_train
@@ -38,9 +38,7 @@ To run the model we would have:
 
 ```{r, eval = FALSE}
 gp_bart_mod <- gp_bart(x_train = x_train,
-                       y_train = c(y_train),
+                       y = c(y_train),
                        x_test = x_test,
-                       n_tree = 10,
-                       gp_variables_ = colnames(x_train), # Selecting all var.
-                       rotation_variables_ = colnames(x_train)) 
+                       n_tree = 20)
 ```
