@@ -158,7 +158,7 @@ modelParam::modelParam(arma::mat x_train_,
         n_burn = n_burn_;
 
         // Initialising distance and phi vector
-        phi_grid = {0.1, 0.5, 1.0, 2.5, 3.0, 4.0, 5.0, 10.0, 25.0, 50.0};
+        phi_grid = {0.1, 0.5, 1.0, 2.5, 3.0, 4.0, 50.0};
 
         phi_mat = arma::mat(n_tree_,x_train_gp.n_cols);
 
