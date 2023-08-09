@@ -158,7 +158,7 @@ modelParam::modelParam(arma::mat x_train_,
         n_burn = n_burn_;
 
         // Initialising distance and phi vector
-        phi_grid = {0.1, 0.5, 1.0, 2.5, 3.0, 4.0, 50.0};
+        phi_grid = {0.1, 0.5, 1.0, 2.0, 3.0, 4.0, 50.0};
 
         phi_mat = arma::mat(n_tree_,x_train_gp.n_cols);
 
@@ -1636,13 +1636,13 @@ void getPredictions(Node* tree,
                 arma::mat Lambda_diag_inv;
 
                 Lambda_diag_inv = arma::inv(Lambda + arma::eye(t_nodes[i]->n_leaf,t_nodes[i]->n_leaf)*(1/data.tau));
-               
+
 
                 // Getting the mean for the training
                 arma::mat gp_train_mean = Lambda.t()*Lambda_diag_inv*t_nodes[i]->leaf_res;
                 arma::mat gp_train_cov = Lambda - Lambda.t()*Lambda_diag_inv*Lambda;
 
-               
+
                 if(sample){
                         // Rcpp::Rcout <<  "SAMPLED TRAIN!" << endl;
                         leaf_y_hat = arma::mvnrnd(gp_train_mean,gp_train_cov+arma::eye(gp_train_cov.n_rows,gp_train_cov.n_cols)*1e-10);
@@ -2186,7 +2186,7 @@ Rcpp::List cppgpbart(arma::mat x_train,
                 Rcpp::Rcout <<  "] " << std::setprecision(5) << 100 << "%\r";
                 // std::cout.flush();
                 Rcpp::Rcout.flush();
-                
+
                 Rcpp::Rcout <<  std::endl;
         }
         return Rcpp::List::create(y_train_hat_post, // Train prediction [1]
