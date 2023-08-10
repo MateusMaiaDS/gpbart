@@ -1757,9 +1757,13 @@ void updatePhi(Node* tree,
         // Defining the grid of phis
         // arma::vec phi_grid = {0.1, 0.5, 1.0, 1.5, 2.0, 2.5, 3.0, 3.5, 4.0, 4.5, 5.0, 5.5, 6.0, 6.5, 7.0, 7.5, 8.0, 8.5, 9.0, 9.5, 10.0, 10.0, 11.0, 12.0, 13.0, 14.0, 15.0, 16.0, 17.0, 18.0, 19.0, 20.0, 25.0, 30.0, 50.0, 75.0, 100.0, 125.0};
         // arma::vec phi_grid = {0.1, 0.5, 1.0, 2.5, 3.0, 4.0, 5.0, 10.0, 25.0, 50.0};
+        arma::vec phi_grid_prob = {0.022,0.206,0.236,0.035,0.014,0.002,0.485};
 
 
-
+        // Getting the values
+        if(phi_grid_prob.size() == data.phi_grid.size()){
+                Rcpp::stop("Eror on the phi grid size.");
+        }
         // For iterating for each dimension p
         for(int  i = 0; i<data.x_train_gp.n_cols;i++){
 
@@ -1799,7 +1803,7 @@ void updatePhi(Node* tree,
 
                 // Rcpp::Rcout <<  "The error is not here" << endl;
                 // Verifying if it gonna accept or reject the new tree
-                double prior_log = log(0.7*r_gamma_pdf(data.phi_grid(sample_index), 5000, 100) + 0.3*r_gamma_pdf(data.phi_grid(sample_index),3,(2.5))) - log(0.7*r_gamma_pdf(data.phi_grid(data.phi_mat(t,i)),5000,100)+0.3*r_gamma_pdf(data.phi_grid(data.phi_mat(t,i)),3,2.5));
+                double prior_log = log(phi_grid_prob(sample_index)) - log(phi_grid_prob(data.phi_mat(t,i)));
 
                 // Rcpp::Rcout <<  "Prior log value: " << prior_log << endl;
 
