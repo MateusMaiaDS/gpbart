@@ -1761,8 +1761,8 @@ void updatePhi(Node* tree,
 
 
         // Getting the values
-        if(phi_grid_prob.size() == data.phi_grid.size()){
-                Rcpp::stop("Eror on the phi grid size.");
+        if(phi_grid_prob.size() != data.phi_grid.size()){
+                Rcpp::stop("Error on the phi grid size.");
         }
         // For iterating for each dimension p
         for(int  i = 0; i<data.x_train_gp.n_cols;i++){
